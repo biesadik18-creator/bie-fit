@@ -79,6 +79,7 @@
     if (!appState.gymPlan) appState.gymPlan = [];
     (appState.customExercises || []).forEach((e) => { if (!megaExercises.some((x) => x.id === e.id)) megaExercises.push(e); });
     const wi = $('#waPhoneInput'); if (wi) { wi.value = user.wa || ''; wi.readOnly = true; wi.title = 'Ubah lewat menu akun > Ganti no. HP'; }
+    await featuresReady;
     ov.remove();
     renderAll();
     lucide.createIcons();
@@ -308,6 +309,13 @@
     if (!appState.gymPlan) appState.gymPlan = [];
     days.forEach((day, i) => appState.gymPlan.push({ id: Date.now() + i, day, exId: ex.id, name: ex.name, time: v('time') }));
     renderPlan(); o.remove(); toast(`Jadwal ditambahkan (${days.length} hari)`);
+  });
+
+  window.Bie = { api, toast, esc, IN };
+  const featuresReady = new Promise((res) => {
+    const sc = document.createElement('script');
+    sc.src = '/features.js'; sc.onload = res; sc.onerror = res;
+    document.head.appendChild(sc);
   });
 
   setMode('login');
