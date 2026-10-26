@@ -3,7 +3,7 @@ main = "src/index.js"
 compatibility_date = "2026-10-26"
 
 [vars]
-GEMINI_MODEL = "gemini-2.5-flash"   # ganti jika Google merilis model flash yang lebih baru
+   GEMINI_MODEL = "gemini-3.6-flash"   # ganti jika Google merilis model flash yang lebih baru
 
 [assets]
 directory = "./public"
