@@ -75,15 +75,23 @@
     appState.email = user.email;
     appState.waPhone = user.wa || '';
     if (appState.targetBurn == null) appState.targetBurn = 300; // target bakar kalori harian (kkal)
+    me = user; setHeader();
+    if (!appState.gymPlan) appState.gymPlan = [];
+    (appState.customExercises || []).forEach((e) => { if (!megaExercises.some((x) => x.id === e.id)) megaExercises.push(e); });
+    const wi = $('#waPhoneInput'); if (wi) { wi.value = user.wa || ''; wi.readOnly = true; wi.title = 'Ubah lewat menu akun > Ganti no. HP'; }
     ov.remove();
     renderAll();
     lucide.createIcons();
   }
-  setInterval(async () => {
-    if (!localStorage.getItem(TK) || ov.isConnected) return;
+  async function flush() {
     const j = JSON.stringify(appState);
     if (j === last) return;
-    try { await api('/state', { method: 'PUT', headers: JSONH, body: j }); last = j; } catch {}
+    await api('/state', { method: 'PUT', headers: JSONH, body: j });
+    last = j;
+  }
+  setInterval(async () => {
+    if (!localStorage.getItem(TK) || ov.isConnected) return;
+    try { await flush(); } catch {}
   }, 4000);
 
   // ---------- Modal scan makanan (markup-nya tidak ada di HTML asli, dibuat di sini) ----------
@@ -176,6 +184,131 @@
     } catch (e) { toast(e.message); }
     ev.target.value = '';
   };
+
+  // ---------- Header, menu akun, tes WA, gym ----------
+  let me = {};
+  const esc = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const setHeader = () => { const e = $('#headerUserEmail'); if (e) { e.textContent = me.name || me.email || ''; e.title = me.email || ''; e.classList.remove('hidden'); } };
+  const cf = document.querySelector('button[onclick="openCloudflareModal()"]'); if (cf) cf.remove();
+
+  const F = (name, label, type = 'text', val = '') => `<label class="block text-[11px] text-slate-400">${label}<input name="${name}" type="${type}" value="${esc(val)}" class="mt-1 ${IN} !py-2"></label>`;
+  function xModal(title, body, okText, onOk) {
+    const o = document.createElement('div');
+    o.className = 'fixed inset-0 z-[80] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4';
+    o.innerHTML = `<div class="w-full max-w-sm bg-[#111827] border border-white/[0.07] rounded-3xl p-5 space-y-3 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center"><h3 class="text-white font-bold text-sm">${title}</h3><button class="xc text-slate-400 text-xl leading-none">×</button></div>
+      ${body}<p class="xe text-xs min-h-[1rem] text-rose-400"></p>
+      <div class="flex gap-2"><button class="xc flex-1 py-2.5 rounded-xl bg-[#161F30] text-slate-300 text-xs font-semibold">Batal</button>
+      <button class="xo flex-1 py-2.5 rounded-xl bg-emerald-500 text-slate-900 text-xs font-bold">${okText}</button></div></div>`;
+    document.body.appendChild(o);
+    o.querySelectorAll('.xc').forEach((b) => (b.onclick = () => o.remove()));
+    const v = (n) => o.querySelector(`[name="${n}"]`).value;
+    o.querySelector('.xo').onclick = async (ev) => {
+      o.querySelector('.xe').textContent = ''; ev.target.disabled = true;
+      try { await onOk(v, o); } catch (e) { o.querySelector('.xe').textContent = e.message; }
+      ev.target.disabled = false;
+    };
+    return o;
+  }
+  const put = (path, method, body) => api(path, { method, headers: JSONH, body: JSON.stringify(body) });
+  const menu = {
+    profil: () => xModal('Profil', F('name', 'Nama', 'text', me.name) + `<p class="text-xs text-slate-400">Email: <span class="text-slate-200">${esc(me.email)}</span></p><p class="text-xs text-slate-400">No. WhatsApp: <span class="text-slate-200">${esc(me.wa || 'belum diisi')}</span></p>`, 'Simpan', async (v, o) => {
+      me = (await put('/profile', 'PUT', { name: v('name') })).user; setHeader(); o.remove(); toast('Profil diperbarui');
+    }),
+    pass: () => xModal('Ganti password', F('old', 'Password lama', 'password') + F('n1', 'Password baru (min. 8 karakter)', 'password') + F('n2', 'Ulangi password baru', 'password'), 'Ubah', async (v, o) => {
+      if (v('n1') !== v('n2')) throw new Error('Password baru tidak sama');
+      await put('/password', 'POST', { old: v('old'), next: v('n1') }); o.remove(); toast('Password berhasil diubah');
+    }),
+    wa: () => xModal('Ganti no. HP', `<p class="text-[11px] text-slate-400">Saat ini: ${esc(me.wa || 'belum diisi')}. Pesan konfirmasi dikirim ke nomor baru.</p>` + F('wa', 'No. WhatsApp baru (08xxx / 62xxx)', 'tel') + F('pw', 'Password (untuk konfirmasi)', 'password'), 'Simpan', async (v, o) => {
+      me = (await put('/profile', 'PUT', { wa: v('wa'), password: v('pw') })).user;
+      appState.waPhone = me.wa; const wi = $('#waPhoneInput'); if (wi) wi.value = me.wa;
+      o.remove(); toast('Nomor diperbarui: ' + me.wa);
+    }),
+    out: async () => { if (!confirm('Keluar dari akun ini?')) return; try { await flush(); } catch {} localStorage.removeItem(TK); location.reload(); },
+  };
+  window.openAccountModal = () => {
+    const old = $('#xMenu'); if (old) return old.remove();
+    const m = document.createElement('div');
+    m.id = 'xMenu';
+    m.className = 'fixed right-3 top-14 z-[70] w-52 rounded-2xl bg-[#111827] border border-white/[0.1] shadow-2xl p-1.5 text-sm';
+    m.innerHTML = [['profil', '👤 Profil'], ['pass', '🔑 Ganti password'], ['wa', '📱 Ganti no. HP'], ['out', '🚪 Log out']]
+      .map(([k, t]) => `<button data-k="${k}" class="w-full text-left px-3 py-2 rounded-xl hover:bg-white/[0.06] ${k === 'out' ? 'text-rose-400' : 'text-slate-200'}">${t}</button>`).join('');
+    document.body.appendChild(m);
+    m.onclick = (e) => { const k = e.target.dataset.k; if (k) { m.remove(); menu[k](); } };
+    setTimeout(() => document.addEventListener('click', (e) => { if (!m.contains(e.target)) m.remove(); }, { once: true }), 0);
+  };
+
+  // Tes WhatsApp: server langsung mengirim lewat Fonnte ke nomor terdaftar (tanpa membuka wa.me)
+  async function waTest(kind) {
+    try { await flush(); toast('Mengirim WhatsApp…'); const r = await put('/wa/test', 'POST', { kind }); toast('✅ Terkirim ke ' + r.to); }
+    catch (e) { toast(e.message); }
+  }
+  window.sendCalorieWaAlert = () => waTest('alert');
+  window.triggerMorningWaSchedule = () => waTest('morning');
+
+  // Gym: elemen yang hilang di HTML asli + tambah latihan + jadwal mingguan
+  const badge = $('#gymTotalBurnBadge');
+  if (badge && !$('#gymTotalVolumeText')) {
+    const w = document.createElement('div'); w.className = 'flex flex-wrap gap-2 self-start';
+    badge.replaceWith(w);
+    w.append(badge);
+    w.insertAdjacentHTML('beforeend', '<span id="gymTotalVolumeText" class="text-xs font-mono font-bold px-3 py-1.5 rounded-xl bg-sky-500/10 text-sky-300 border border-sky-500/20"></span>');
+  }
+  $('#gymCategoryPills').insertAdjacentHTML('beforebegin', `<div class="space-y-2">
+    <input id="gymSearchInput" oninput="filterGymCatalog()" placeholder="Cari latihan (mis. bench, squat, lari)…" class="${IN} !py-2.5">
+    <div class="flex items-center justify-between gap-2"><span id="gymResultsCount" class="text-[11px] text-slate-400"></span>
+    <button onclick="xAddExercise()" class="px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-900 text-xs font-bold">＋ Latihan Baru</button></div></div>`);
+  $('#loggedWorkoutsList').closest('.apple-card').insertAdjacentHTML('beforebegin', `<div class="apple-card p-5 space-y-3">
+    <div class="flex items-center justify-between"><h3 class="text-sm font-bold text-white">📅 Jadwal Latihan Mingguan</h3>
+    <button onclick="xAddPlan()" class="px-3 py-1.5 rounded-xl bg-sky-500 text-slate-900 text-xs font-bold">＋ Tambah Jadwal</button></div><div id="gymPlanBox"></div></div>`);
+  const num = (id, l) => `<label class="text-[11px] text-slate-400">${l}<input id="${id}" type="number" step="any" oninput="calculateWorkoutDetails()" class="mt-1 ${IN} !py-2"></label>`;
+  document.body.insertAdjacentHTML('beforeend', `<div id="workoutLogModal" class="hidden fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-[#111827] border border-white/[0.07] rounded-3xl p-5 space-y-3">
+      <div class="flex justify-between items-start"><div><h3 id="workoutLogModalTitle" class="text-white font-bold text-sm"></h3><p id="workoutLogModalSub" class="text-[11px] text-slate-400"></p></div>
+      <button onclick="closeWorkoutLogModal()" class="text-slate-400 text-xl leading-none">×</button></div>
+      <div id="workoutWeightsForm" class="grid grid-cols-3 gap-2">${num('workoutSetsInput', 'Set')}${num('workoutRepsInput', 'Reps')}${num('workoutWeightInput', 'Beban (kg)')}
+        <p class="col-span-3 text-[11px] text-slate-400">Volume: <span id="workoutVolumeResult" class="font-mono text-emerald-300">0 kg</span></p></div>
+      <div id="workoutCardioForm" class="hidden grid grid-cols-2 gap-2">${num('workoutDurationInput', 'Durasi (menit)')}${num('workoutIntensityInput', 'Intensitas (METs)')}</div>
+      <label class="block text-[11px] text-slate-400">Kalori terbakar (kkal)<input id="workoutCalResult" type="number" class="mt-1 ${IN} !py-2"></label>
+      <button onclick="commitWorkoutEntry()" class="w-full py-3 rounded-2xl bg-emerald-500 text-slate-900 font-bold text-sm">Simpan Latihan</button></div></div>`);
+
+  const WD = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'], DAYS = [...WD.slice(1), WD[0]];
+  function renderPlan() {
+    const box = $('#gymPlanBox'); if (!box) return;
+    const plan = appState.gymPlan || [], td = WD[new Date(Date.now() + 7 * 36e5).getUTCDay()];
+    box.innerHTML = plan.length ? DAYS.map((d) => {
+      const it = plan.filter((x) => x.day === d).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+      return it.length ? `<div class="mb-2"><div class="text-[11px] font-bold mb-1 ${d === td ? 'text-emerald-400' : 'text-slate-400'}">${d}${d === td ? ' • hari ini' : ''}</div>${it.map((x) => `
+        <div class="p-2.5 rounded-xl bg-[#161F30] flex items-center justify-between text-xs mb-1.5"><span class="text-white">${esc(x.name)} <span class="text-slate-500 font-mono">${esc(x.time || '')}</span></span>
+        <span class="flex gap-3"><button onclick="openWorkoutLogModal('${esc(x.exId)}')" class="text-emerald-400 font-bold">Catat</button><button onclick="xDelPlan(${x.id})" class="text-slate-500">✕</button></span></div>`).join('')}</div>` : '';
+    }).join('') : '<p class="text-xs text-slate-500 italic">Belum ada jadwal. Ketuk “＋ Tambah Jadwal”.</p>';
+  }
+  window.xDelPlan = (id) => { appState.gymPlan = (appState.gymPlan || []).filter((x) => x.id !== id); renderPlan(); };
+  const rg = window.renderGymSection;
+  window.renderGymSection = function (c) { rg(c); renderPlan(); };
+
+  window.xAddExercise = () => xModal('Latihan baru', F('name', 'Nama latihan') +
+    `<label class="block text-[11px] text-slate-400">Kategori<select name="cat" class="mt-1 ${IN} !py-2">${['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Kardio & Olahraga'].map((c) => `<option>${esc(c)}</option>`).join('')}</select></label>` +
+    F('cps', 'Kalori per set (latihan beban)', 'number', '30') + F('met', 'METs (khusus kardio)', 'number', '7'), 'Tambah', async (v, o) => {
+    const name = v('name').trim(); if (!name) throw new Error('Nama latihan wajib diisi');
+    const cat = v('cat'), cardio = cat === 'Kardio & Olahraga';
+    const ex = { id: 'u' + Date.now(), cat, type: cardio ? 'cardio' : 'weight', name, detail: 'Latihan buatan sendiri', ...(cardio ? { met: +v('met') || 7 } : { calPerSet: +v('cps') || 30 }) };
+    megaExercises.push(ex);
+    if (!appState.customExercises) appState.customExercises = [];
+    appState.customExercises.push(ex);
+    renderAll(); o.remove(); toast(`${name} ditambahkan ke katalog`);
+  });
+  window.xAddPlan = () => xModal('Tambah jadwal latihan',
+    `<div class="text-[11px] text-slate-400">Hari<div class="mt-1 flex flex-wrap gap-1.5">${DAYS.map((d) => `<label class="px-2.5 py-1 rounded-lg bg-[#161F30] text-slate-200 text-xs"><input type="checkbox" name="d" value="${d}" class="accent-emerald-500 mr-1">${d}</label>`).join('')}</div></div>` +
+    `<label class="block text-[11px] text-slate-400">Latihan<select name="ex" class="mt-1 ${IN} !py-2">${megaExercises.map((e) => `<option value="${esc(e.id)}">${esc(e.cat)} — ${esc(e.name)}</option>`).join('')}</select></label>` +
+    F('time', 'Jam (opsional)', 'time'), 'Simpan', async (v, o) => {
+    const days = [...o.querySelectorAll('input[name=d]:checked')].map((x) => x.value);
+    if (!days.length) throw new Error('Pilih minimal satu hari');
+    const ex = megaExercises.find((e) => e.id === v('ex'));
+    if (!appState.gymPlan) appState.gymPlan = [];
+    days.forEach((day, i) => appState.gymPlan.push({ id: Date.now() + i, day, exId: ex.id, name: ex.name, time: v('time') }));
+    renderPlan(); o.remove(); toast(`Jadwal ditambahkan (${days.length} hari)`);
+  });
 
   setMode('login');
   if (localStorage.getItem(TK)) boot().catch(() => { localStorage.removeItem(TK); });
