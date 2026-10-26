@@ -1,0 +1,2364 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bie.Fit — Smart Body, Nutrition & Workout Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            400: '#34d399',
+                            500: '#10b981',
+                            600: '#059669',
+                        },
+                        surface: {
+                            base: '#0B0F19',
+                            card: '#111827',
+                            cardMuted: '#161F30',
+                            border: 'rgba(255, 255, 255, 0.07)'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0B0F19;
+            color: #F8FAFC;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+        }
+
+        .apple-card {
+            background: rgba(17, 24, 39, 0.78);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 22px;
+        }
+
+        .metric-box {
+            background: #111827;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 20px;
+            transition: all 0.2s ease;
+        }
+        .metric-box:hover {
+            border-color: rgba(255, 255, 255, 0.16);
+            transform: translateY(-1px);
+        }
+
+        /* Custom Range Slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #1E293B;
+            height: 6px;
+            border-radius: 999px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #10B981;
+            cursor: pointer;
+            border: 3px solid #0B0F19;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+
+        /* Hide scrollbar cleanly */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .nav-pill-active {
+            background: rgba(16, 185, 129, 0.14);
+            color: #34D399;
+            border: 1px solid rgba(16, 185, 129, 0.28);
+        }
+
+        .scope-pill-active {
+            background: #10B981;
+            color: #06281E;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-28 selection:bg-emerald-500 selection:text-slate-950">
+
+    <!-- ========================================================================= -->
+    <!-- TOP HEADER MINIMALIST                                                     -->
+    <!-- ========================================================================= -->
+    <header class="sticky top-0 z-30 bg-[#0B0F19]/85 backdrop-blur-xl border-b border-white/[0.06]">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <!-- Brand -->
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                    <i data-lucide="activity" class="w-5 h-5 text-slate-950 stroke-[2.5]"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-extrabold text-lg tracking-tight text-white">Bie<span class="text-emerald-400">.Fit</span></span>
+                        <span id="headerGoalBadge" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Cutting</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 hidden sm:block">Smart Body Composition, FatSecret Diary & Gym Tracker</p>
+                </div>
+            </div>
+
+            <!-- Right Actions: WA Alert, Cloudflare Blueprint, Account -->
+            <div class="flex items-center gap-2">
+                <button onclick="openWaModal()" class="px-2.5 py-1.5 rounded-xl bg-[#111827] hover:bg-slate-800 border border-white/[0.07] text-xs font-semibold text-emerald-400 flex items-center gap-1.5 transition" title="Pengingat WhatsApp">
+                    <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">WA Alert</span>
+                </button>
+                <button onclick="openCloudflareModal()" class="px-2.5 py-1.5 rounded-xl bg-[#111827] hover:bg-slate-800 border border-white/[0.07] text-xs font-semibold text-amber-400 flex items-center gap-1.5 transition" title="Cloudflare D1 & Worker">
+                    <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
+                    <span class="hidden md:inline">Cloudflare</span>
+                </button>
+                <button onclick="openAccountModal()" class="px-2.5 py-1.5 rounded-xl bg-[#111827] hover:bg-slate-800 border border-white/[0.07] text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition">
+                    <i data-lucide="user" class="w-3.5 h-3.5 text-sky-400"></i>
+                    <span id="headerUserEmail" class="max-w-[100px] truncate hidden sm:inline">bie@biefit.id</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================================================= -->
+    <!-- MAIN CONTAINER                                                            -->
+    <!-- ========================================================================= -->
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 pt-5 space-y-6">
+
+        <!-- ===================================================================== -->
+        <!-- TAB 1: PROGRES (HARIAN, MINGGUAN, BULANAN)                            -->
+        <!-- ===================================================================== -->
+        <section id="view-dashboard" class="app-view space-y-5">
+
+            <!-- Scope Switcher + Quick Target Summary -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="inline-flex p-1 rounded-2xl bg-[#111827] border border-white/[0.07] self-start">
+                    <button onclick="switchScope('daily')" id="scopeBtn-daily" class="px-4 py-1.5 rounded-xl text-xs transition scope-pill-active">Harian</button>
+                    <button onclick="switchScope('weekly')" id="scopeBtn-weekly" class="px-4 py-1.5 rounded-xl text-xs text-slate-400 hover:text-white transition">Mingguan</button>
+                    <button onclick="switchScope('monthly')" id="scopeBtn-monthly" class="px-4 py-1.5 rounded-xl text-xs text-slate-400 hover:text-white transition">Bulanan</button>
+                </div>
+
+                <div class="flex items-center justify-between sm:justify-end gap-2.5 text-xs">
+                    <span id="dashTopSummary" class="text-slate-400">Target: <strong class="text-white">2.100 kkal</strong> • BB <strong class="text-emerald-400">71.4 ➔ 66.0 kg</strong></span>
+                    <button onclick="openManualTargetModal()" class="px-3 py-1.5 rounded-xl bg-[#111827] hover:bg-slate-800 border border-white/[0.08] text-emerald-400 font-semibold flex items-center gap-1.5 transition">
+                        <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
+                        <span>Edit Target</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ----------------------------------------------------------------- -->
+            <!-- SUB-SCOPE 1A: HARIAN (DAILY)                                      -->
+            <!-- ----------------------------------------------------------------- -->
+            <div id="scopeView-daily" class="space-y-5">
+
+                <!-- 4-Card Core Body Composition Strip (Exact Clean Dark Screenshot Style) -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div onclick="openBodyEditModal()" class="metric-box p-4 cursor-pointer group" title="Klik untuk edit Berat Badan">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">BERAT BADAN</span>
+                            <i data-lucide="pencil" class="w-3 h-3 text-slate-600 group-hover:text-emerald-400 transition"></i>
+                        </div>
+                        <div class="mt-1.5 flex items-baseline gap-1">
+                            <span id="stripWeight" class="text-2xl font-extrabold text-white tracking-tight">71.4</span>
+                            <span class="text-xs font-medium text-slate-400">kg</span>
+                        </div>
+                    </div>
+
+                    <div onclick="openBodyEditModal()" class="metric-box p-4 cursor-pointer group" title="Klik untuk edit Body Fat %">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">BODY FAT</span>
+                            <i data-lucide="pencil" class="w-3 h-3 text-slate-600 group-hover:text-amber-400 transition"></i>
+                        </div>
+                        <div class="mt-1.5 flex items-baseline gap-1">
+                            <span id="stripFat" class="text-2xl font-extrabold text-amber-400 tracking-tight">17.8</span>
+                            <span class="text-xs font-medium text-slate-400">%</span>
+                        </div>
+                    </div>
+
+                    <div onclick="openBodyEditModal()" class="metric-box p-4 cursor-pointer group" title="Klik untuk edit Muscle Mass">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">MUSCLE MASS</span>
+                            <i data-lucide="pencil" class="w-3 h-3 text-slate-600 group-hover:text-sky-400 transition"></i>
+                        </div>
+                        <div class="mt-1.5 flex items-baseline gap-1">
+                            <span id="stripMuscle" class="text-2xl font-extrabold text-sky-400 tracking-tight">55.6</span>
+                            <span class="text-xs font-medium text-slate-400">kg</span>
+                        </div>
+                    </div>
+
+                    <div onclick="openBodyEditModal()" class="metric-box p-4 cursor-pointer group" title="Klik untuk edit Visceral Fat">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">VISCERAL FAT</span>
+                            <i data-lucide="pencil" class="w-3 h-3 text-slate-600 group-hover:text-emerald-400 transition"></i>
+                        </div>
+                        <div class="mt-1.5 flex items-baseline gap-1">
+                            <span id="stripVisceral" class="text-2xl font-extrabold text-emerald-400 tracking-tight">6.0</span>
+                            <span class="text-xs font-medium text-slate-400">Lvl</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Calorie Ring & Macro Card -->
+                <div class="apple-card p-5 sm:p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-sm font-bold text-white">Ringkasan Kalori & Makro Hari Ini</h2>
+                            <p class="text-[11px] text-slate-400">Otomatis memicu pengingat WA bila &lt;50% atau &gt;100% target</p>
+                        </div>
+                        <button onclick="openManualTargetModal()" class="text-xs font-semibold text-emerald-400 hover:underline flex items-center gap-1">
+                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                            <span>Ubah Target</span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                        <!-- SVG Calorie Ring -->
+                        <div class="md:col-span-5 flex flex-col items-center justify-center">
+                            <div class="relative w-44 h-44 flex items-center justify-center">
+                                <svg class="w-full h-full -rotate-90" viewBox="0 0 120 120">
+                                    <circle cx="60" cy="60" r="50" stroke="#1E293B" stroke-width="10" fill="none"></circle>
+                                    <circle id="dailyCalRingArc" cx="60" cy="60" r="50" stroke="#10B981" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="180" class="transition-all duration-500"></circle>
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                    <span class="text-[10px] uppercase tracking-wider font-bold text-slate-400">Tersisa</span>
+                                    <span id="dailyCalRemaining" class="text-3xl font-extrabold text-white font-mono">1.280</span>
+                                    <span class="text-[11px] text-slate-400">dari <span id="dailyCalTarget">2.100</span> kkal</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Calorie Breakdown + Macro Bars -->
+                        <div class="md:col-span-7 space-y-4">
+                            <!-- 3 Pill Stats -->
+                            <div class="grid grid-cols-3 gap-2.5 text-center">
+                                <div class="p-3 rounded-2xl bg-[#161F30] border border-white/[0.05]">
+                                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Makanan</span>
+                                    <span id="dailyCalIn" class="text-base font-extrabold text-white font-mono">820</span>
+                                    <span class="text-[10px] text-slate-400 block">kkal</span>
+                                </div>
+                                <div class="p-3 rounded-2xl bg-[#161F30] border border-white/[0.05]">
+                                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Olahraga</span>
+                                    <span id="dailyCalOut" class="text-base font-extrabold text-amber-400 font-mono">420</span>
+                                    <span class="text-[10px] text-slate-400 block">kkal</span>
+                                </div>
+                                <div class="p-3 rounded-2xl bg-[#161F30] border border-white/[0.05]">
+                                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Net Kalori</span>
+                                    <span id="dailyCalNet" class="text-base font-extrabold text-emerald-400 font-mono">400</span>
+                                    <span class="text-[10px] text-slate-400 block">kkal</span>
+                                </div>
+                            </div>
+
+                            <!-- 3 Macro Progress Bars -->
+                            <div class="space-y-3 pt-1">
+                                <div>
+                                    <div class="flex justify-between text-xs mb-1">
+                                        <span class="font-semibold text-slate-300">Protein</span>
+                                        <span id="dailyMacroPText" class="font-mono text-emerald-400 font-semibold">93g / 155g</span>
+                                    </div>
+                                    <div class="h-2 rounded-full bg-slate-800 overflow-hidden">
+                                        <div id="dailyMacroPBar" class="h-full bg-emerald-400 rounded-full transition-all duration-300" style="width: 60%"></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="flex justify-between text-xs mb-1">
+                                        <span class="font-semibold text-slate-300">Karbohidrat</span>
+                                        <span id="dailyMacroCText" class="font-mono text-sky-400 font-semibold">61g / 210g</span>
+                                    </div>
+                                    <div class="h-2 rounded-full bg-slate-800 overflow-hidden">
+                                        <div id="dailyMacroCBar" class="h-full bg-sky-400 rounded-full transition-all duration-300" style="width: 29%"></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="flex justify-between text-xs mb-1">
+                                        <span class="font-semibold text-slate-300">Lemak</span>
+                                        <span id="dailyMacroFText" class="font-mono text-amber-400 font-semibold">21g / 70g</span>
+                                    </div>
+                                    <div class="h-2 rounded-full bg-slate-800 overflow-hidden">
+                                        <div id="dailyMacroFBar" class="h-full bg-amber-400 rounded-full transition-all duration-300" style="width: 30%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Row: Rutinitas Pagi + Timbang & Status Hari Ini -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Checklist Jadwal Pagi -->
+                    <div class="apple-card p-5 space-y-3.5">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                    <i data-lucide="bell-ring" class="w-4 h-4 text-emerald-400"></i>
+                                    Jadwal & Pengingat Pagi (06:00)
+                                </h3>
+                                <p class="text-[11px] text-slate-400">Terkirim otomatis ke WhatsApp setiap pagi</p>
+                            </div>
+                            <button onclick="triggerMorningWaSchedule()" class="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold transition">
+                                Kirim WA Pagi
+                            </button>
+                        </div>
+
+                        <div id="morningScheduleList" class="space-y-2"></div>
+
+                        <div class="flex gap-2 pt-1">
+                            <input type="text" id="newScheduleInput" placeholder="Tambah jadwal pagi/harian..." class="flex-1 px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.07] text-xs text-white focus:outline-none focus:border-emerald-500">
+                            <button onclick="addMorningSchedule()" class="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition">+ Tambah</button>
+                        </div>
+                    </div>
+
+                    <!-- Timbang & Status Hari Ini (Synced with BMI & Body Tab) -->
+                    <div class="apple-card p-5 flex flex-col justify-between space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                    <i data-lucide="scale" class="w-4 h-4 text-sky-400"></i>
+                                    Timbang & Status Hari Ini
+                                </h3>
+                                <p class="text-[11px] text-slate-400">Sinkron otomatis dengan Kalkulator BMI & Timbangan</p>
+                            </div>
+                            <button onclick="openBodyEditModal()" class="px-2.5 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 text-[11px] font-semibold flex items-center gap-1 transition">
+                                <i data-lucide="pencil" class="w-3 h-3"></i>
+                                <span>Update Timbangan</span>
+                            </button>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-[#161F30] border border-white/[0.06] space-y-2.5">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Berat Badan Saat Ini</span>
+                                    <div class="flex items-baseline gap-1.5 mt-0.5">
+                                        <span id="todayCardWeight" class="text-2xl font-extrabold text-white font-mono">71.4</span>
+                                        <span class="text-xs text-slate-400">kg</span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span id="todayCardBmiBadge" class="inline-block text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                        BMI 23.3 • Overweight Ringan
+                                    </span>
+                                    <span id="todayCardGoalDiff" class="block text-[11px] text-emerald-400 font-semibold mt-1">
+                                        Target: 66.0 kg (-5.4 kg lagi)
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-2 pt-2 border-t border-white/[0.06] text-center">
+                                <div>
+                                    <span class="text-[10px] text-slate-400 block">Body Fat</span>
+                                    <strong id="todayCardFat" class="text-xs text-amber-400 font-mono">17.8%</strong>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-slate-400 block">Muscle Mass</span>
+                                    <strong id="todayCardMuscle" class="text-xs text-sky-400 font-mono">55.6 kg</strong>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-slate-400 block">Visceral Fat</span>
+                                    <strong id="todayCardVisceral" class="text-xs text-emerald-400 font-mono">Lvl 6.0</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between text-xs text-slate-400">
+                            <span>Status Kalori WA: <strong id="waAlertStatusBadge" class="text-amber-400">Kurang dari 50% Target</strong></span>
+                            <button onclick="sendCalorieWaAlert()" class="text-emerald-400 hover:underline font-semibold">Kirim Alert WA</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ----------------------------------------------------------------- -->
+            <!-- SUB-SCOPE 1B: MINGGUAN (WEEKLY)                                    -->
+            <!-- ----------------------------------------------------------------- -->
+            <div id="scopeView-weekly" class="hidden space-y-5">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="metric-box p-4">
+                        <span class="text-[10px] font-bold uppercase text-slate-400">Rata-rata Berat 7 Hari</span>
+                        <div id="weeklyAvgWeight" class="text-xl font-extrabold text-white mt-1 font-mono">71.8 kg</div>
+                        <span class="text-[11px] text-emerald-400">Turun -0.9 kg minggu ini</span>
+                    </div>
+                    <div class="metric-box p-4">
+                        <span class="text-[10px] font-bold uppercase text-slate-400">Kepatuhan Target Kalori</span>
+                        <div class="text-xl font-extrabold text-emerald-400 mt-1 font-mono">91%</div>
+                        <span class="text-[11px] text-slate-400">6 dari 7 hari sesuai target</span>
+                    </div>
+                    <div class="metric-box p-4">
+                        <span class="text-[10px] font-bold uppercase text-slate-400">Total Kalori Terbakar Gym</span>
+                        <div id="weeklyWorkoutCal" class="text-xl font-extrabold text-amber-400 mt-1 font-mono">2.450 kkal</div>
+                        <span class="text-[11px] text-slate-400">5 sesi latihan selesai</span>
+                    </div>
+                </div>
+
+                <div class="apple-card p-5 sm:p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-white">Grafik Tren Berat Badan (7 Hari Terakhir)</h3>
+                            <p class="text-[11px] text-slate-400">Titik hari terakhir otomatis mengikuti perubahan timbangan hari ini</p>
+                        </div>
+                        <span id="weeklyLatestBadge" class="text-xs font-mono font-bold px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Hari Ini: 71.4 kg</span>
+                    </div>
+                    <div class="h-60 w-full">
+                        <canvas id="weeklyWeightChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ----------------------------------------------------------------- -->
+            <!-- SUB-SCOPE 1C: BULANAN (MONTHLY)                                    -->
+            <!-- ----------------------------------------------------------------- -->
+            <div id="scopeView-monthly" class="hidden space-y-5">
+                <div class="apple-card p-5 sm:p-6 space-y-4">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                            <h3 class="text-sm font-bold text-white">Kalender Konsistensi 30 Hari (Heat-map)</h3>
+                            <p class="text-[11px] text-slate-400">Hijau = Defisit Optimal • Kuning = Maintenance • Merah = Over Kalori</p>
+                        </div>
+                        <span class="text-xs font-bold text-emerald-400">26 / 30 Hari Disiplin</span>
+                    </div>
+                    <div id="monthlyHeatmapGrid" class="grid grid-cols-6 sm:grid-cols-10 gap-2"></div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="apple-card p-5 space-y-3">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Perubahan Komposisi 30 Hari</h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex justify-between items-center p-3 rounded-xl bg-[#161F30]">
+                                <span class="text-slate-300">Berat Badan</span>
+                                <span id="monthlyDeltaWeight" class="font-bold text-white font-mono">74.2 kg ➔ 71.4 kg (-2.8 kg)</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 rounded-xl bg-[#161F30]">
+                                <span class="text-slate-300">Body Fat %</span>
+                                <span id="monthlyDeltaFat" class="font-bold text-amber-400 font-mono">20.4% ➔ 17.8% (-2.6%)</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 rounded-xl bg-[#161F30]">
+                                <span class="text-slate-300">Muscle Mass</span>
+                                <span id="monthlyDeltaMuscle" class="font-bold text-sky-400 font-mono">54.1 kg ➔ 55.6 kg (+1.5 kg)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="apple-card p-5 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Komparasi Visual Bulanan</h4>
+                            <button onclick="switchTab('body')" class="text-xs text-emerald-400 hover:underline">Kelola Foto 3 Sisi</button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 text-center">
+                            <div class="p-3 rounded-2xl bg-[#161F30] border border-white/[0.05]">
+                                <div class="h-28 rounded-xl bg-slate-800/70 flex items-center justify-center text-slate-500 mb-2">
+                                    <i data-lucide="user" class="w-8 h-8"></i>
+                                </div>
+                                <span class="text-[10px] text-slate-400 font-bold block">Awal Bulan</span>
+                                <span class="text-xs font-bold text-slate-200">74.2 kg • 20.4% Fat</span>
+                            </div>
+                            <div class="p-3 rounded-2xl bg-[#161F30] border border-emerald-500/30">
+                                <div class="h-28 rounded-xl bg-emerald-950/40 flex items-center justify-center text-emerald-400 mb-2">
+                                    <i data-lucide="sparkles" class="w-8 h-8"></i>
+                                </div>
+                                <span class="text-[10px] text-emerald-400 font-bold block">Saat Ini</span>
+                                <span id="monthlyNowCaption" class="text-xs font-bold text-white">71.4 kg • 17.8% Fat</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 2: NUTRISI (FATSECRET-STYLE CLEAN DIARY)                          -->
+        <!-- ===================================================================== -->
+        <section id="view-nutrition" class="app-view hidden space-y-5">
+
+            <!-- FatSecret Style Date Bar & RDI Summary Header -->
+            <div class="apple-card p-5 space-y-4">
+                <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                    <button onclick="changeDiaryDay(-1)" class="p-1.5 rounded-xl bg-[#161F30] hover:bg-slate-800 text-slate-300">
+                        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                    </button>
+                    <div class="text-center">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">Buku Harian Makanan (FatSecret Mode)</span>
+                        <h2 id="diaryDateLabel" class="text-sm font-bold text-white">Hari Ini, Minggu 25 Okt 2026</h2>
+                    </div>
+                    <button onclick="changeDiaryDay(1)" class="p-1.5 rounded-xl bg-[#161F30] hover:bg-slate-800 text-slate-300">
+                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- RDI Summary Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 items-center">
+                    <div class="p-3.5 rounded-2xl bg-[#161F30] border border-white/[0.05]">
+                        <span class="text-[10px] text-slate-400 uppercase font-bold block">% dari RDI Harian</span>
+                        <div class="flex items-baseline gap-1.5 mt-1">
+                            <span id="fsRdiPercent" class="text-2xl font-extrabold text-emerald-400 font-mono">39%</span>
+                            <span class="text-[11px] text-slate-400">terpakai</span>
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-[#161F30] border border-white/[0.05]">
+                        <span class="text-[10px] text-slate-400 uppercase font-bold block">Kalori Masuk</span>
+                        <div id="fsCalIn" class="text-lg font-extrabold text-white mt-1 font-mono">820 kkal</div>
+                        <span id="fsKilojoule" class="text-[10px] text-slate-400 block">3.431 kJ</span>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-[#161F30] border border-white/[0.05]">
+                        <span class="text-[10px] text-slate-400 uppercase font-bold block">Kalori Tersisa</span>
+                        <div id="fsCalRem" class="text-lg font-extrabold text-emerald-400 mt-1 font-mono">1.280 kkal</div>
+                        <span id="fsTargetSub" class="text-[10px] text-slate-400 block">Target RDI: 2.100 kkal</span>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <button onclick="openFoodModal('sarapan', 'ai')" class="w-full py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition">
+                            <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+                            <span>Scan Foto Makan AI</span>
+                        </button>
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <button onclick="openNutritionFactsModal()" class="py-1.5 px-2 rounded-xl bg-[#161F30] hover:bg-slate-800 border border-white/[0.07] text-[11px] font-semibold text-sky-400">Info Gizi</button>
+                            <button onclick="openManualTargetModal()" class="py-1.5 px-2 rounded-xl bg-[#161F30] hover:bg-slate-800 border border-white/[0.07] text-[11px] font-semibold text-emerald-400">Edit RDI</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Macro Stacked Distribution Bar -->
+                <div class="space-y-1.5">
+                    <div class="h-2.5 w-full rounded-full bg-slate-800 overflow-hidden flex">
+                        <div id="fsBarCarb" class="bg-sky-400 h-full transition-all" style="width: 30%"></div>
+                        <div id="fsBarProt" class="bg-emerald-400 h-full transition-all" style="width: 45%"></div>
+                        <div id="fsBarFat" class="bg-amber-400 h-full transition-all" style="width: 25%"></div>
+                    </div>
+                    <div class="flex justify-between text-[11px] text-slate-400">
+                        <span><strong class="text-sky-400">● Karbo:</strong> <span id="fsLegendCarb">61g (30%)</span></span>
+                        <span><strong class="text-emerald-400">● Protein:</strong> <span id="fsLegendProt">93g (45%)</span></span>
+                        <span><strong class="text-amber-400">● Lemak:</strong> <span id="fsLegendFat">21g (25%)</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4 Meal Buckets (Sarapan, Makan Siang, Makan Malam, Camilan) -->
+            <div id="fatSecretBucketsContainer" class="space-y-3.5"></div>
+
+            <!-- 10-Glass Interactive Water Tracker -->
+            <div class="apple-card p-5 space-y-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <i data-lucide="droplets" class="w-4 h-4 text-sky-400"></i>
+                            Asupan Air Putih Harian
+                        </h3>
+                        <p class="text-[11px] text-slate-400">Klik gelas untuk mencatat (+250 ml per gelas)</p>
+                    </div>
+                    <span id="waterStatusText" class="text-xs font-mono font-bold text-sky-400">1.500 / 2.500 ml (6 Gelas)</span>
+                </div>
+                <div id="waterGlassesRow" class="grid grid-cols-5 sm:grid-cols-10 gap-2 pt-1"></div>
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 3: GYM & KARDIO                                                   -->
+        <!-- ===================================================================== -->
+        <section id="view-gym" class="app-view hidden space-y-5">
+            <div class="apple-card p-5 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <i data-lucide="dumbbell" class="w-5 h-5 text-emerald-400"></i>
+                            Katalog Olahraga & Latihan Gym Lengkap
+                        </h2>
+                        <p class="text-xs text-slate-400">Pilih kategori otot atau kardio, hitung volume beban & kalori terbakar</p>
+                    </div>
+                    <span id="gymTotalBurnBadge" class="text-xs font-mono font-bold px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 self-start">
+                        Terbakar Hari Ini: 420 kkal
+                    </span>
+                </div>
+
+                <!-- Category Filter Pills -->
+                <div id="gymCategoryPills" class="flex gap-2 overflow-x-auto no-scrollbar pb-1"></div>
+
+                <!-- Exercise Catalog Grid -->
+                <div id="gymCatalogGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+            </div>
+
+            <!-- Active Workout Session Log -->
+            <div class="apple-card p-5 space-y-3">
+                <h3 class="text-sm font-bold text-white">Sesi Latihan Tercatat Hari Ini</h3>
+                <div id="loggedWorkoutsList" class="space-y-2"></div>
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 4: TUBUH & FOTO (UNIVERSAL SCALE SCANNER - KRISBOW / DIGITAL / GYM)-->
+        <!-- ===================================================================== -->
+        <section id="view-body" class="app-view hidden space-y-5">
+
+            <!-- Universal Scale Scanner & Manual Body Composition -->
+            <div class="apple-card p-5 sm:p-6 space-y-5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <i data-lucide="scan-line" class="w-5 h-5 text-sky-400"></i>
+                            Komposisi Tubuh & Data Timbangan Pintar
+                        </h2>
+                        <p class="text-xs text-slate-400">
+                            Input manual atau unggah foto layar/aplikasi <strong>Timbangan Krisbow</strong>, smart scale digital, laporan PDF, maupun kertas hasil ukur gym.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button onclick="openBodyEditModal()" class="px-3.5 py-2.5 rounded-xl bg-[#161F30] hover:bg-slate-800 border border-white/[0.08] text-white font-semibold text-xs flex items-center gap-1.5 transition">
+                            <i data-lucide="pencil" class="w-3.5 h-3.5 text-emerald-400"></i>
+                            <span>Edit Manual</span>
+                        </button>
+                        <label class="px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition shadow-sm">
+                            <i data-lucide="camera" class="w-4 h-4"></i>
+                            <span>Scan Data Timbangan / Foto / PDF (AI)</span>
+                            <input type="file" accept="image/*,.pdf" class="hidden" onchange="handleUniversalScaleScan(event)">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 4 Main Metric Cards (Exact Clean Dark Screenshot Style + Click to Edit) -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div onclick="openBodyEditModal()" class="metric-box p-4 cursor-pointer group">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">BERAT BADAN</span>
+                            <i data-lucide="edit-2" class="w-3 h-3 text-slate-600 group-hover:text-white"></i>
+                        </div>
+                        <div class="mt-1.5 flex items-baseline gap-1">
+                            <span id="bodyTabWeight" class="text-2xl font-extrabold text-white">71.4</span>
+                            <span class="text-xs text-slate-400">kg</span>
+                        </div>
+                        <span id="bodyTabWeightTarget" class="text-[10px] text-emerald-400 block mt-1">Target: 66.0 kg</span>
+                    </div>
+
+                    <div onclick="openBodyEditModal()" class="metric-box p-4 cursor-pointer group">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">BODY FAT</span>
+                            <i data-lucide="edit-2" class="w-3 h-3 text-slate-600 group-hover:text-amber-400"></i>
+                        </div>
+                        <div class="mt-1.5 flex items-baseline gap-1">
+                            <span id="bodyTabFat" class="text-2xl font-extrabold text-amber-400">17.8</span>
+                            <span class="text-xs text-slate-400">%</span>
+                        </div>
+                        <span id="bodyTabFatTarget" class="text-[10px] text-slate-400 block mt-1">Target: 14.0%</span>
+                    </div>
+
+                    <div onclick="openBodyEditModal()" class="metric-box p-4 cursor-pointer group">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">MUSCLE MASS</span>
+                            <i data-lucide="edit-2" class="w-3 h-3 text-slate-600 group-hover:text-sky-400"></i>
+                        </div>
+                        <div class="mt-1.5 flex items-baseline gap-1">
+                            <span id="bodyTabMuscle" class="text-2xl font-extrabold text-sky-400">55.6</span>
+                            <span class="text-xs text-slate-400">kg</span>
+                        </div>
+                        <span id="bodyTabMuscleTarget" class="text-[10px] text-slate-400 block mt-1">Target: 57.0 kg</span>
+                    </div>
+
+                    <div onclick="openBodyEditModal()" class="metric-box p-4 cursor-pointer group">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">VISCERAL FAT</span>
+                            <i data-lucide="edit-2" class="w-3 h-3 text-slate-600 group-hover:text-emerald-400"></i>
+                        </div>
+                        <div class="mt-1.5 flex items-baseline gap-1">
+                            <span id="bodyTabVisceral" class="text-2xl font-extrabold text-emerald-400">6.0</span>
+                            <span class="text-xs text-slate-400">Lvl</span>
+                        </div>
+                        <span class="text-[10px] text-slate-400 block mt-1">Ideal: &lt; 9.0 Lvl</span>
+                    </div>
+                </div>
+
+                <!-- Secondary Body Metrics (BMI, BMR, Body Water, Bone Mass) -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                    <div class="p-3 rounded-2xl bg-[#161F30] flex items-center justify-between">
+                        <span class="text-slate-400">Skor BMI</span>
+                        <strong id="bodySecondaryBmi" class="text-white font-mono">23.3</strong>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-[#161F30] flex items-center justify-between">
+                        <span class="text-slate-400">BMR Dasar</span>
+                        <strong id="bodySecondaryBmr" class="text-white font-mono">1.682 kkal</strong>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-[#161F30] flex items-center justify-between">
+                        <span class="text-slate-400">Kadar Air (TBW)</span>
+                        <strong id="bodySecondaryWater" class="text-sky-400 font-mono">58.4%</strong>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-[#161F30] flex items-center justify-between">
+                        <span class="text-slate-400">Massa Tulang</span>
+                        <strong id="bodySecondaryBone" class="text-emerald-400 font-mono">3.1 kg</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3-Side Full Body Visual Tracking (Depan, Samping, Belakang) -->
+            <div class="apple-card p-5 sm:p-6 space-y-4">
+                <div>
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i data-lucide="camera" class="w-4 h-4 text-emerald-400"></i>
+                        Tracking Foto Full-Body 3 Sisi (Depan, Samping, Belakang)
+                    </h3>
+                    <p class="text-xs text-slate-400">Pantau perubahan bentuk tubuh secara visual dari waktu ke waktu</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <!-- Depan -->
+                    <label class="p-4 rounded-2xl bg-[#161F30] border border-dashed border-white/[0.12] hover:border-emerald-400/50 flex flex-col items-center justify-center text-center cursor-pointer transition min-h-[200px] relative overflow-hidden">
+                        <img id="photoPreviewFront" class="hidden absolute inset-0 w-full h-full object-cover" alt="Pose Depan">
+                        <div id="photoPlaceholderFront" class="space-y-2">
+                            <div class="w-11 h-11 rounded-2xl bg-slate-800 flex items-center justify-center mx-auto text-emerald-400">
+                                <i data-lucide="user" class="w-5 h-5"></i>
+                            </div>
+                            <span class="text-xs font-bold text-white block">Tampak Depan</span>
+                            <span class="text-[11px] text-slate-400 block">Klik untuk upload foto</span>
+                        </div>
+                        <input type="file" accept="image/*" class="hidden" onchange="previewBodyPhoto(event, 'Front')">
+                    </label>
+
+                    <!-- Samping -->
+                    <label class="p-4 rounded-2xl bg-[#161F30] border border-dashed border-white/[0.12] hover:border-emerald-400/50 flex flex-col items-center justify-center text-center cursor-pointer transition min-h-[200px] relative overflow-hidden">
+                        <img id="photoPreviewSide" class="hidden absolute inset-0 w-full h-full object-cover" alt="Pose Samping">
+                        <div id="photoPlaceholderSide" class="space-y-2">
+                            <div class="w-11 h-11 rounded-2xl bg-slate-800 flex items-center justify-center mx-auto text-sky-400">
+                                <i data-lucide="user-check" class="w-5 h-5"></i>
+                            </div>
+                            <span class="text-xs font-bold text-white block">Tampak Samping</span>
+                            <span class="text-[11px] text-slate-400 block">Klik untuk upload foto</span>
+                        </div>
+                        <input type="file" accept="image/*" class="hidden" onchange="previewBodyPhoto(event, 'Side')">
+                    </label>
+
+                    <!-- Belakang -->
+                    <label class="p-4 rounded-2xl bg-[#161F30] border border-dashed border-white/[0.12] hover:border-emerald-400/50 flex flex-col items-center justify-center text-center cursor-pointer transition min-h-[200px] relative overflow-hidden">
+                        <img id="photoPreviewBack" class="hidden absolute inset-0 w-full h-full object-cover" alt="Pose Belakang">
+                        <div id="photoPlaceholderBack" class="space-y-2">
+                            <div class="w-11 h-11 rounded-2xl bg-slate-800 flex items-center justify-center mx-auto text-amber-400">
+                                <i data-lucide="shield" class="w-5 h-5"></i>
+                            </div>
+                            <span class="text-xs font-bold text-white block">Tampak Belakang</span>
+                            <span class="text-[11px] text-slate-400 block">Klik untuk upload foto</span>
+                        </div>
+                        <input type="file" accept="image/*" class="hidden" onchange="previewBodyPhoto(event, 'Back')">
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 5: TARGET BMI & EDIT TARGET MANUAL (FULL REAL-TIME SYNC)          -->
+        <!-- ===================================================================== -->
+        <section id="view-bmi" class="app-view hidden space-y-5">
+
+            <!-- Card 1: Interactive BMI, Body Composition & Smart Goal Calculator -->
+            <div class="apple-card p-5 sm:p-6 space-y-5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <i data-lucide="calculator" class="w-5 h-5 text-emerald-400"></i>
+                            Kalkulator BMI, Komposisi Tubuh & Smart Target
+                        </h2>
+                        <p class="text-xs text-slate-400">
+                            Saat diterapkan, otomatis mengubah <strong>Timbang & Status Hari Ini</strong>, <strong>4 Kartu Komposisi Tubuh</strong>, serta Target Kalori Harian.
+                        </p>
+                    </div>
+                    <div class="inline-flex p-1 rounded-xl bg-[#161F30] border border-white/[0.06] text-[11px] self-start">
+                        <button onclick="setBmiStandard('asia')" id="stdBtn-asia" class="px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 font-bold">Standar Asia</button>
+                        <button onclick="setBmiStandard('who')" id="stdBtn-who" class="px-2.5 py-1 rounded-lg text-slate-400">WHO Global</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                    <!-- Left Inputs -->
+                    <div class="md:col-span-7 space-y-4">
+                        <!-- Row 1: Gender, Age, Height, Current Weight -->
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-1">Gender</label>
+                                <select id="bmiGender" onchange="recalculateBmiEngine()" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.07] text-xs font-semibold text-white">
+                                    <option value="male">Pria</option>
+                                    <option value="female">Wanita</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-1">Usia (Thn)</label>
+                                <input type="number" id="bmiAge" value="27" oninput="recalculateBmiEngine()" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.07] text-xs font-bold text-white font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-1">Tinggi (cm)</label>
+                                <input type="number" id="bmiHeight" value="175" oninput="recalculateBmiEngine()" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.07] text-xs font-bold text-white font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-emerald-400 font-bold mb-1">BB Saat Ini (kg)</label>
+                                <input type="number" step="0.1" id="bmiCurrentWeight" value="71.4" oninput="recalculateBmiEngine()" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-emerald-500/40 text-xs font-extrabold text-white font-mono">
+                            </div>
+                        </div>
+
+                        <!-- Row 2: Body Composition Inputs (Syncs to the 4 Cards!) -->
+                        <div class="p-3.5 rounded-2xl bg-[#161F30] border border-white/[0.06] space-y-2.5">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-sky-400 block">
+                                Data Timbangan Saat Ini (Krisbow / Digital / Gym) — Ikut Diperbarui Saat Diterapkan
+                            </span>
+                            <div class="grid grid-cols-3 gap-2.5">
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 mb-1">Body Fat (%)</label>
+                                    <input type="number" step="0.1" id="bmiCurrentFat" value="17.8" oninput="recalculateBmiEngine()" class="w-full px-3 py-2 rounded-xl bg-[#0B0F19] border border-white/[0.07] text-xs font-bold text-amber-400 font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 mb-1">Muscle Mass (kg)</label>
+                                    <input type="number" step="0.1" id="bmiCurrentMuscle" value="55.6" oninput="recalculateBmiEngine()" class="w-full px-3 py-2 rounded-xl bg-[#0B0F19] border border-white/[0.07] text-xs font-bold text-sky-400 font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 mb-1">Visceral Fat (Lvl)</label>
+                                    <input type="number" step="0.5" id="bmiCurrentVisceral" value="6.0" oninput="recalculateBmiEngine()" class="w-full px-3 py-2 rounded-xl bg-[#0B0F19] border border-white/[0.07] text-xs font-bold text-emerald-400 font-mono">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Row 3: Activity Level & Goal Mode -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-1">Tingkat Aktivitas Harian</label>
+                                <select id="bmiActivity" onchange="recalculateBmiEngine()" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.07] text-xs text-white">
+                                    <option value="1.2">Sedentari (Jarang Olahraga)</option>
+                                    <option value="1.375">Ringan (1-3x / minggu)</option>
+                                    <option value="1.55" selected>Moderat (3-5x / minggu)</option>
+                                    <option value="1.725">Aktif (6-7x / minggu)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-1">Fokus Tujuan</label>
+                                <div class="grid grid-cols-3 gap-1.5">
+                                    <button onclick="setGoalMode('lose')" id="goalBtn-lose" class="py-2 rounded-xl text-[11px] font-bold bg-emerald-500/20 border border-emerald-500 text-emerald-300">Turun BB</button>
+                                    <button onclick="setGoalMode('maintain')" id="goalBtn-maintain" class="py-2 rounded-xl text-[11px] font-semibold bg-[#161F30] border border-white/[0.07] text-slate-400">Maintain</button>
+                                    <button onclick="setGoalMode('gain')" id="goalBtn-gain" class="py-2 rounded-xl text-[11px] font-semibold bg-[#161F30] border border-white/[0.07] text-slate-400">Naik BB</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Row 4: Target Weight Slider & Direct Input -->
+                        <div class="space-y-1.5 pt-1">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-slate-400">Target Berat Badan Ideal:</span>
+                                <div class="flex items-center gap-1.5">
+                                    <input type="number" step="0.5" id="bmiTargetWeightInput" value="66.0" oninput="syncSliderFromInput(this.value)" class="w-20 px-2.5 py-1 rounded-lg bg-[#161F30] border border-emerald-500/40 text-right font-mono font-bold text-emerald-400 text-xs">
+                                    <span class="text-slate-400">kg</span>
+                                </div>
+                            </div>
+                            <input type="range" id="bmiTargetWeightSlider" min="45" max="120" step="0.5" value="66.0" oninput="syncInputFromSlider(this.value)" class="w-full">
+                            <div class="flex justify-between text-[10px] text-slate-500">
+                                <span id="bmiIdealRangeText">Rentang BMI Ideal: 56.7 kg – 70.1 kg</span>
+                                <span id="bmiTargetBmiPreview">Target BMI: 21.6</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Result Box -->
+                    <div class="md:col-span-5 p-4 sm:p-5 rounded-2xl bg-[#161F30] border border-white/[0.07] space-y-3.5 text-xs">
+                        <div class="flex items-center justify-between pb-2.5 border-b border-white/[0.07]">
+                            <span class="text-slate-400">Skor BMI Saat Ini</span>
+                            <div class="text-right">
+                                <span id="calcOutBmi" class="text-lg font-extrabold text-white font-mono">23.3</span>
+                                <span id="calcOutBmiCat" class="ml-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400">Overweight Ringan</span>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400">BMR / TDEE Pemeliharaan</span>
+                            <span id="calcOutTdee" class="font-bold text-white font-mono">1.682 / 2.607 kkal</span>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400">Rekomendasi Target Kalori</span>
+                            <span id="calcOutTargetCal" class="text-base font-extrabold text-emerald-400 font-mono">2.107 kkal/hari</span>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400">Rekomendasi Makro (P/K/L)</span>
+                            <span id="calcOutMacros" class="font-semibold text-slate-200 font-mono">158g P • 211g K • 70g L</span>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400">Estimasi Waktu Tercapai</span>
+                            <span id="calcOutWeeks" class="font-bold text-sky-400">~11 Minggu (-5.4 kg)</span>
+                        </div>
+
+                        <button onclick="applyCalculatorToAllState()" class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs transition shadow-lg shadow-emerald-500/15 flex items-center justify-center gap-1.5">
+                            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                            <span>Terapkan Kalkulator ke Target & Status Hari Ini</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: Menu Edit Target Manual (Custom Kalori, Makro, Target BB & Fat) -->
+            <div class="apple-card p-5 sm:p-6 space-y-4">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <i data-lucide="sliders-horizontal" class="w-4 h-4 text-emerald-400"></i>
+                            Edit Target Manual (Custom Kalori, Makro & Komposisi)
+                        </h3>
+                        <p class="text-xs text-slate-400">Atur angka target Anda secara bebas tanpa rumus kalkulator otomatis</p>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Input Manual Bebas</span>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">Target Kalori Harian (kkal)</label>
+                        <input type="number" id="manualCalInput" value="2100" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.07] font-mono font-bold text-emerald-400">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">Target Protein (g)</label>
+                        <input type="number" id="manualProtInput" value="155" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.07] font-mono font-bold text-white">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">Target Karbohidrat (g)</label>
+                        <input type="number" id="manualCarbInput" value="210" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.07] font-mono font-bold text-sky-400">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">Target Lemak (g)</label>
+                        <input type="number" id="manualFatInput" value="70" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.07] font-mono font-bold text-amber-400">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">Target Berat Badan (kg)</label>
+                        <input type="number" step="0.1" id="manualTargetWeightInput" value="66.0" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.07] font-mono font-bold text-white">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">Target Body Fat (%)</label>
+                        <input type="number" step="0.1" id="manualTargetBodyFatInput" value="14.0" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.07] font-mono font-bold text-amber-400">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">Target Muscle Mass (kg)</label>
+                        <input type="number" step="0.1" id="manualTargetMuscleInput" value="57.0" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.07] font-mono font-bold text-sky-400">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="saveInlineManualTargets()" class="w-full py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition flex items-center justify-center gap-1.5">
+                            <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                            <span>Simpan Target Manual</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- FLOATING BOTTOM NAVIGATION BAR (5 CLEAN TABS)                             -->
+    <!-- ========================================================================= -->
+    <nav class="fixed bottom-4 inset-x-0 z-40 px-4 pointer-events-none">
+        <div class="max-w-md mx-auto bg-[#111827]/95 backdrop-blur-xl border border-white/[0.09] rounded-2xl p-1.5 shadow-2xl flex items-center justify-between pointer-events-auto">
+            <button onclick="switchTab('dashboard')" id="navBtn-dashboard" class="flex-1 py-2 rounded-xl flex flex-col items-center gap-1 text-[11px] font-semibold transition nav-pill-active">
+                <i data-lucide="layout-Grid" class="w-4 h-4"></i>
+                <span>Progres</span>
+            </button>
+            <button onclick="switchTab('nutrition')" id="navBtn-nutrition" class="flex-1 py-2 rounded-xl flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-white transition">
+                <i data-lucide="utensils" class="w-4 h-4"></i>
+                <span>Nutrisi</span>
+            </button>
+            <button onclick="switchTab('gym')" id="navBtn-gym" class="flex-1 py-2 rounded-xl flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-white transition">
+                <i data-lucide="dumbbell" class="w-4 h-4"></i>
+                <span>Gym</span>
+            </button>
+            <button onclick="switchTab('body')" id="navBtn-body" class="flex-1 py-2 rounded-xl flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-white transition">
+                <i data-lucide="scan-face" class="w-4 h-4"></i>
+                <span>Tubuh & Foto</span>
+            </button>
+            <button onclick="switchTab('bmi')" id="navBtn-bmi" class="flex-1 py-2 rounded-xl flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-white transition">
+                <i data-lucide="calculator" class="w-4 h-4"></i>
+                <span>Target BMI</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ========================================================================= -->
+    <!-- MODALS (BODY EDIT, MANUAL TARGET, FOOD ADD, NUTRITION FACTS, WA, CF)      -->
+    <!-- ========================================================================= -->
+
+    <!-- 1. Modal Edit Timbangan & Komposisi Tubuh (Krisbow / Smart Scale / Manual) -->
+    <div id="bodyEditModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="apple-card p-6 max-w-md w-full space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i data-lucide="scale" class="w-4 h-4 text-sky-400"></i>
+                    Update Data Timbangan & Komposisi Tubuh
+                </h3>
+                <button onclick="closeBodyEditModal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-400">Masukkan angka dari timbangan Krisbow, smart scale, atau timbangan digital Anda. Semua kartu metrik & status hari ini akan langsung berubah.</p>
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Berat Badan (kg)</label>
+                    <input type="number" step="0.1" id="modalWeight" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono font-bold text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Body Fat (%)</label>
+                    <input type="number" step="0.1" id="modalFat" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono font-bold text-amber-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Muscle Mass (kg)</label>
+                    <input type="number" step="0.1" id="modalMuscle" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono font-bold text-sky-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Visceral Fat (Lvl)</label>
+                    <input type="number" step="0.5" id="modalVisceral" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono font-bold text-emerald-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Kadar Air / TBW (%)</label>
+                    <input type="number" step="0.1" id="modalWater" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Massa Tulang (kg)</label>
+                    <input type="number" step="0.1" id="modalBone" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono text-white">
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button onclick="saveBodyEditModal()" class="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition">Simpan & Sinkronkan</button>
+                <button onclick="closeBodyEditModal()" class="px-4 py-2.5 rounded-xl bg-[#161F30] text-slate-300 text-xs font-semibold">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Modal Edit Target Manual Cepat -->
+    <div id="manualTargetModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="apple-card p-6 max-w-md w-full space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i data-lucide="sliders-horizontal" class="w-4 h-4 text-emerald-400"></i>
+                    Edit Target Kalori, Makro & BB Manual
+                </h3>
+                <button onclick="closeManualTargetModal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <div class="col-span-2">
+                    <label class="block text-[10px] text-emerald-400 font-bold mb-1">Target Kalori Harian (kkal)</label>
+                    <input type="number" id="modalTargetCal" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-emerald-500/40 font-mono font-extrabold text-white text-sm">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Target Protein (g)</label>
+                    <input type="number" id="modalTargetP" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono font-bold text-emerald-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Target Karbohidrat (g)</label>
+                    <input type="number" id="modalTargetC" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono font-bold text-sky-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Target Lemak (g)</label>
+                    <input type="number" id="modalTargetF" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono font-bold text-amber-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Target Berat Badan (kg)</label>
+                    <input type="number" step="0.1" id="modalTargetW" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono font-bold text-white">
+                </div>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="saveModalManualTarget()" class="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition">Simpan Target</button>
+                <button onclick="closeManualTargetModal()" class="px-4 py-2.5 rounded-xl bg-[#161F30] text-slate-300 text-xs font-semibold">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Modal Tambah Makanan (FatSecret Database + Manual + AI Photo) -->
+    <div id="foodModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="apple-card p-6 max-w-lg w-full space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between">
+                <h3 id="foodModalTitle" class="text-sm font-bold text-white">Tambah Makanan — Sarapan</h3>
+                <button onclick="closeFoodModal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Search Indonesian Food Database -->
+            <div class="space-y-2">
+                <label class="block text-[10px] uppercase font-bold text-slate-400">Cari Database Makanan Populer (Klik untuk Pilih)</label>
+                <div id="foodQuickDbList" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1"></div>
+            </div>
+
+            <!-- AI Photo Upload Option -->
+            <div class="p-3.5 rounded-2xl bg-[#161F30] border border-dashed border-emerald-500/30 flex items-center justify-between">
+                <div class="text-xs">
+                    <span class="font-bold text-emerald-400 block">Analisis Foto Makanan dengan AI</span>
+                    <span class="text-[11px] text-slate-400">Otomatis hitung kalori, makro & mikro</span>
+                </div>
+                <label class="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs cursor-pointer transition">
+                    Pilih Foto
+                    <input type="file" accept="image/*" class="hidden" onchange="simulateAiMealPhoto(event)">
+                </label>
+            </div>
+
+            <!-- Manual / Selected Food Inputs -->
+            <div class="grid grid-cols-2 gap-2.5 text-xs">
+                <div class="col-span-2">
+                    <label class="block text-[10px] text-slate-400 mb-1">Nama Makanan / Minuman</label>
+                    <input type="text" id="foodNameInput" placeholder="Contoh: Dada Ayam Bakar" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Takaran Saji</label>
+                    <input type="text" id="foodServingInput" value="1 porsi (100g)" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-emerald-400 font-bold mb-1">Kalori (kkal)</label>
+                    <input type="number" id="foodCalInput" value="165" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono font-bold text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Protein (g)</label>
+                    <input type="number" step="0.1" id="foodProtInput" value="31" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono text-emerald-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Karbohidrat (g)</label>
+                    <input type="number" step="0.1" id="foodCarbInput" value="0" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono text-sky-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Lemak (g)</label>
+                    <input type="number" step="0.1" id="foodFatInput" value="3.6" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono text-amber-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Serat (g)</label>
+                    <input type="number" step="0.1" id="foodFiberInput" value="0" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono text-white">
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button onclick="saveFoodEntry()" class="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition">+ Catat ke Buku Harian</button>
+                <button onclick="closeFoodModal()" class="px-4 py-2.5 rounded-xl bg-[#161F30] text-slate-300 text-xs font-semibold">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Modal Informasi Nilai Gizi (FatSecret Nutrition Facts Panel) -->
+    <div id="nutritionFactsModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="apple-card p-6 max-w-md w-full space-y-4">
+            <div class="flex items-center justify-between border-b border-white/[0.1] pb-3">
+                <div>
+                    <h3 class="text-base font-extrabold text-white">Informasi Nilai Gizi Harian</h3>
+                    <p class="text-[11px] text-slate-400">Akumulasi Makronutrisi & Mikronutrisi Hari Ini</p>
+                </div>
+                <button onclick="document.getElementById('nutritionFactsModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div id="nutritionFactsBody" class="space-y-2 text-xs font-mono"></div>
+        </div>
+    </div>
+
+    <!-- 5. Modal Pengingat WhatsApp -->
+    <div id="waModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="apple-card p-6 max-w-md w-full space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i data-lucide="message-circle" class="w-4 h-4 text-emerald-400"></i>
+                    Otomatisasi Pengingat WhatsApp
+                </h3>
+                <button onclick="document.getElementById('waModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Nomor WhatsApp Tujuan</label>
+                    <input type="text" id="waPhoneInput" value="6281288990011" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] font-mono text-white">
+                </div>
+                <div class="p-3.5 rounded-2xl bg-[#161F30] space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-200 font-semibold">Alert Kalori &lt; 50% atau &gt; 100% Target</span>
+                        <input type="checkbox" checked class="accent-emerald-500">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-200 font-semibold">Jadwal Rutinitas Pagi (06:00 WIB)</span>
+                        <input type="checkbox" checked class="accent-emerald-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <button onclick="sendCalorieWaAlert()" class="py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition">Tes Alert Kalori</button>
+                    <button onclick="triggerMorningWaSchedule()" class="py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs transition">Tes Jadwal Pagi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. Modal Cloudflare D1 & Worker Blueprint -->
+    <div id="cloudflareModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="apple-card p-6 max-w-2xl w-full space-y-4 max-h-[85vh] overflow-y-auto">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i data-lucide="cloud" class="w-4 h-4 text-amber-400"></i>
+                    Arsitektur Hosting Cloudflare Pages + D1 SQLite + Cron WA
+                </h3>
+                <button onclick="document.getElementById('cloudflareModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-400">Skema database D1 (`schema.sql`) & Cron Worker (`worker.js`) siap pakai untuk deployment aplikasi Bie.Fit di Cloudflare:</p>
+            <pre class="p-3.5 rounded-2xl bg-[#0B0F19] border border-white/[0.07] text-[11px] font-mono text-emerald-300 overflow-x-auto">-- Cloudflare D1 schema.sql
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  wa_phone TEXT,
+  target_calories INTEGER DEFAULT 2100,
+  target_weight REAL DEFAULT 66.0
+);
+
+CREATE TABLE body_metrics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT,
+  recorded_date TEXT,
+  weight_kg REAL,
+  body_fat_pct REAL,
+  muscle_mass_kg REAL,
+  visceral_fat REAL,
+  front_photo_url TEXT,
+  side_photo_url TEXT,
+  back_photo_url TEXT
+);</pre>
+        </div>
+    </div>
+
+    <!-- 7. Modal Login Email -->
+    <div id="accountModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="apple-card p-6 max-w-sm w-full space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-white">Login Email Bie.Fit</h3>
+                <button onclick="document.getElementById('accountModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">Alamat Email</label>
+                    <input type="email" id="loginEmailInput" value="bie@biefit.id" class="w-full px-3 py-2 rounded-xl bg-[#161F30] border border-white/[0.08] text-white">
+                </div>
+                <button onclick="saveUserAccount()" class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition">Simpan & Sinkronkan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toastBox" class="fixed top-20 right-4 z-50 max-w-sm bg-[#111827] border border-emerald-500/40 text-white px-4 py-3 rounded-2xl shadow-2xl hidden flex items-center gap-2.5 text-xs">
+        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+        <span id="toastMessage">Berhasil diperbarui</span>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- APPLICATION JAVASCRIPT                                                    -->
+    <!-- ========================================================================= -->
+    <script>
+        let appState = {
+            email: 'bie@biefit.id',
+            waPhone: '6281288990011',
+            gender: 'male',
+            age: 27,
+            height: 175,
+            bmiStandard: 'asia',
+            goalMode: 'lose',
+            currentWeight: 71.4,
+            currentBodyFat: 17.8,
+            currentMuscle: 55.6,
+            currentVisceral: 6.0,
+            currentWaterPct: 58.4,
+            currentBoneMass: 3.1,
+            targetWeight: 66.0,
+            targetBodyFat: 14.0,
+            targetMuscle: 57.0,
+            targetCalories: 2100,
+            targetProtein: 155,
+            targetCarbs: 210,
+            targetFat: 70,
+            waterGlasses: 6,
+            diaryDayOffset: 0,
+            activeMealBucket: 'sarapan',
+            activeGymCategory: 'Kardio & Olahraga',
+            schedules: [
+                { id: 1, time: '06:00', text: 'Minum 500ml air putih & timbang badan pagi', done: true },
+                { id: 2, time: '07:00', text: 'Sarapan tinggi protein (Oatmeal & Telur Rebus)', done: true },
+                { id: 3, time: '17:00', text: 'Sesi Gym (Chest & Triceps) + Kardio 20 menit', done: false }
+            ],
+            meals: [
+                { id: 1, bucket: 'sarapan', name: 'Rolled Oats (Oatmeal)', serving: '40g', cal: 150, p: 5, c: 27, f: 2.5, fiber: 4 },
+                { id: 2, bucket: 'sarapan', name: 'Telur Ayam Rebus (2 Butir)', serving: '100g', cal: 154, p: 13, c: 1, f: 10.6, fiber: 0 },
+                { id: 3, bucket: 'siang', name: 'Dada Ayam Panggang Tanpa Kulit', serving: '150g', cal: 248, p: 46.5, c: 0, f: 5.4, fiber: 0 },
+                { id: 4, bucket: 'siang', name: 'Nasi Merah Matang', serving: '1 centong (135g)', cal: 148, p: 3.8, c: 31, f: 1.2, fiber: 2.8 },
+                { id: 5, bucket: 'camilan', name: 'Whey Protein Isolate Shake', serving: '1 scoop (32g)', cal: 120, p: 25, c: 2, f: 1, fiber: 0 }
+            ],
+            workouts: [
+                { id: 1, name: 'Barbell Bench Press (Chest)', detail: '4 Set × 10 Reps • 60 kg', cal: 155 },
+                { id: 2, name: 'Lari Treadmill / Outdoor', detail: '25 Menit • Pace 6:30', cal: 265 }
+            ],
+            weeklyWeights: [72.3, 72.1, 71.9, 71.8, 71.6, 71.5, 71.4]
+        };
+
+        // ENHANCED MEGA EXERCISE CATALOG (CHEST, BACK, LEGS, SHOULDERS, ARMS, CORE, CARDIO & OLAHRAGA DUNIA)
+        const megaExercises = [
+            // CHEST (DADA)
+            { id: 'c1', cat: 'Chest', type: 'weight', name: 'Barbell Flat Bench Press', detail: 'Barbel bangku datar untuk ketebalan dada tengah', calPerSet: 38 },
+            { id: 'c2', cat: 'Chest', type: 'weight', name: 'Incline Barbell Bench Press', detail: 'Fokus serat dada bagian atas (clavicular head)', calPerSet: 36 },
+            { id: 'c3', cat: 'Chest', type: 'weight', name: 'Decline Barbell Bench Press', detail: 'Target dada bawah untuk garis dada yang tegas', calPerSet: 35 },
+            { id: 'c4', cat: 'Chest', type: 'weight', name: 'Incline Dumbbell Press', detail: 'Tekanan dumbbell sudut 30-45 derajat', calPerSet: 34 },
+            { id: 'c5', cat: 'Chest', type: 'weight', name: 'Flat Dumbbell Press', detail: 'Rentang gerak maksimal tanpa batas barbel', calPerSet: 34 },
+            { id: 'c6', cat: 'Chest', type: 'weight', name: 'Decline Dumbbell Press', detail: 'Isolasi serat dada bawah dengan dumbbell', calPerSet: 32 },
+            { id: 'c7', cat: 'Chest', type: 'weight', name: 'Cable Crossover (High to Low)', detail: 'Kontraksi puncak dada bawah dan tengah', calPerSet: 26 },
+            { id: 'c8', cat: 'Chest', type: 'weight', name: 'Cable Crossover (Low to High)', detail: 'Isolasi kabel dari bawah ke atas untuk dada atas', calPerSet: 26 },
+            { id: 'c9', cat: 'Chest', type: 'weight', name: 'Pec Deck Machine (Chest Fly)', detail: 'Isolasi mesin dengan ketegangan konstan', calPerSet: 25 },
+            { id: 'c10', cat: 'Chest', type: 'weight', name: 'Dips (Chest Leaning Forward)', detail: 'Dips condong ke depan untuk dada bawah', calPerSet: 36 },
+            { id: 'c11', cat: 'Chest', type: 'weight', name: 'Push-Ups (Standard / Deficit)', detail: 'Gerakan fungsional compound dada & core', calPerSet: 22 },
+            { id: 'c12', cat: 'Chest', type: 'weight', name: 'Floor Press (Barbell / Dumbbell)', detail: 'Membangun kekuatan lockout dan trisep/dada', calPerSet: 32 },
+            { id: 'c13', cat: 'Chest', type: 'weight', name: 'Svend Press (Plate Squeeze)', detail: 'Penekanan pelat beban untuk kontraksi isometric', calPerSet: 20 },
+            { id: 'c14', cat: 'Chest', type: 'weight', name: 'Landmine Chest Press', detail: 'Press unilateral sendi ramah bahu', calPerSet: 30 },
+            { id: 'c15', cat: 'Chest', type: 'weight', name: 'Smith Machine Incline Press', detail: 'Stabilitas optimal fokus isolasi serat dada', calPerSet: 32 },
+
+            // BACK (PUNGGUNG)
+            { id: 'b1', cat: 'Back', type: 'weight', name: 'Conventional Barbell Deadlift', detail: 'Raja gerakan compound seluruh rantai posterior', calPerSet: 55 },
+            { id: 'b2', cat: 'Back', type: 'weight', name: 'Sumo Deadlift', detail: 'Variasi kaki lebar, fokus glutes, paha dalam & punggung', calPerSet: 52 },
+            { id: 'b3', cat: 'Back', type: 'weight', name: 'Barbell Bent-Over Row', detail: 'Ketebalan latissimus dorsi, rhomboids, dan traps', calPerSet: 38 },
+            { id: 'b4', cat: 'Back', type: 'weight', name: 'Lat Pulldown (Wide Grip)', detail: 'Memperlebar sayap punggung (V-Taper look)', calPerSet: 32 },
+            { id: 'b5', cat: 'Back', type: 'weight', name: 'Lat Pulldown (Close / Neutral Grip)', detail: 'Fokus peregangan lats bagian bawah', calPerSet: 32 },
+            { id: 'b6', cat: 'Back', type: 'weight', name: 'Seated Cable Row', detail: 'Kontraksi rhomboids & ketebalan punggung tengah', calPerSet: 30 },
+            { id: 'b7', cat: 'Back', type: 'weight', name: 'Pull-Ups (Bodyweight / Weighted)', detail: 'Beban tubuh genggaman pronasi sayap lebar', calPerSet: 40 },
+            { id: 'b8', cat: 'Back', type: 'weight', name: 'Chin-Ups (Supinated Grip)', detail: 'Genggaman supinasi kombinasi lats & bisep', calPerSet: 38 },
+            { id: 'b9', cat: 'Back', type: 'weight', name: 'T-Bar Row (Chest Supported)', detail: 'Row stabil untuk menebalkan mid-back', calPerSet: 36 },
+            { id: 'b10', cat: 'Back', type: 'weight', name: 'Single-Arm Dumbbell Row', detail: 'Koreksi ketidakseimbangan kekuatan lats kanan/kiri', calPerSet: 30 },
+            { id: 'b11', cat: 'Back', type: 'weight', name: 'Face Pulls (Rope Cable)', detail: 'Postur tegak, rear delts, traps, dan rotator cuff', calPerSet: 22 },
+            { id: 'b12', cat: 'Back', type: 'weight', name: 'Straight-Arm Cable Pulldown', detail: 'Isolasi murni lats tanpa melibatkan otot bisep', calPerSet: 25 },
+            { id: 'b13', cat: 'Back', type: 'weight', name: 'Hyperextension (Back Extension)', detail: 'Penguatan erector spinae dan punggung bawah', calPerSet: 24 },
+            { id: 'b14', cat: 'Back', type: 'weight', name: 'Seal Row (Bench Row)', detail: 'Eliminasi momentum kaki untuk isolasi punggung', calPerSet: 32 },
+            { id: 'b15', cat: 'Back', type: 'weight', name: 'Rack Pulls', detail: 'Overload punggung atas dan penguncian deadlift', calPerSet: 45 },
+
+            // LEGS & GLUTES (KAKI & BOKONG)
+            { id: 'l1', cat: 'Legs', type: 'weight', name: 'Barbell Back Squat', detail: 'Standar emas kekuatan quadriceps & glutes', calPerSet: 50 },
+            { id: 'l2', cat: 'Legs', type: 'weight', name: 'Barbell Front Squat', detail: 'Penekanan dominan quadriceps dan postur tegak', calPerSet: 48 },
+            { id: 'l3', cat: 'Legs', type: 'weight', name: 'Leg Press 45 Derajat', detail: 'Volume beban tinggi tanpa tekanan kompresi tulang belakang', calPerSet: 42 },
+            { id: 'l4', cat: 'Legs', type: 'weight', name: 'Romanian Deadlift (Barbell / DB)', detail: 'Peregangan maksimal otot hamstrings & glutes', calPerSet: 40 },
+            { id: 'l5', cat: 'Legs', type: 'weight', name: 'Bulgarian Split Squat', detail: 'Latihan unilateral terbaik untuk kaki dan panggul', calPerSet: 42 },
+            { id: 'l6', cat: 'Legs', type: 'weight', name: 'Barbell Hip Thrust', detail: 'Pembentukan dan kekuatan puncak gluteus maximus', calPerSet: 44 },
+            { id: 'l7', cat: 'Legs', type: 'weight', name: 'Leg Extension Machine', detail: 'Isolasi quadriceps untuk definisi paha depan', calPerSet: 25 },
+            { id: 'l8', cat: 'Legs', type: 'weight', name: 'Lying / Seated Hamstring Curl', detail: 'Isolasi tekukan lutut otot paha belakang', calPerSet: 26 },
+            { id: 'l9', cat: 'Legs', type: 'weight', name: 'Standing / Seated Calf Raises', detail: 'Pembentukan otot betis gastrocnemius & soleus', calPerSet: 20 },
+            { id: 'l10', cat: 'Legs', type: 'weight', name: 'Goblet Squat (Dumbbell/Kettlebell)', detail: 'Pola squat ramah sendi untuk mobilitas panggul', calPerSet: 30 },
+            { id: 'l11', cat: 'Legs', type: 'weight', name: 'Walking Dumbbell Lunges', detail: 'Keseimbangan dinamis dan pembakaran kalori kaki', calPerSet: 38 },
+            { id: 'l12', cat: 'Legs', type: 'weight', name: 'Hack Squat Machine', detail: 'Isolasi deep squat quadriceps dengan sandaran aman', calPerSet: 44 },
+            { id: 'l13', cat: 'Legs', type: 'weight', name: 'Step-Ups with Dumbbells', detail: 'Kekuatan dorong satu kaki dan kestabilan glute', calPerSet: 32 },
+            { id: 'l14', cat: 'Legs', type: 'weight', name: 'Good Mornings (Barbell)', detail: 'Penguatan engsel panggul dan hamstring fleksibilitas', calPerSet: 32 },
+            { id: 'l15', cat: 'Legs', type: 'weight', name: 'Sissy Squat', detail: 'Isolasi quadriceps ekstrim dengan berat tubuh/pelat', calPerSet: 28 },
+
+            // SHOULDERS (BAHU / DELTOIDS)
+            { id: 's1', cat: 'Shoulders', type: 'weight', name: 'Overhead Barbell Press (OHP)', detail: 'Latihan compound utama kekuatan bahu menyeluruh', calPerSet: 38 },
+            { id: 's2', cat: 'Shoulders', type: 'weight', name: 'Seated Dumbbell Shoulder Press', detail: 'Tekanan dumbbell vertikal stabilitas independen', calPerSet: 34 },
+            { id: 's3', cat: 'Shoulders', type: 'weight', name: 'Arnold Press', detail: 'Rotasi bahu dari supinasi ke pronasi', calPerSet: 32 },
+            { id: 's4', cat: 'Shoulders', type: 'weight', name: 'Dumbbell Lateral Raise', detail: 'Kunci bahu bulat melebar (lateral deltoid)', calPerSet: 22 },
+            { id: 's5', cat: 'Shoulders', type: 'weight', name: 'Cable Lateral Raise (Behind/Front)', detail: 'Ketegangan konstan dari awal rentang angkat', calPerSet: 22 },
+            { id: 's6', cat: 'Shoulders', type: 'weight', name: 'Front Dumbbell / Barbell Raise', detail: 'Isolasi anterior deltoid bahu depan', calPerSet: 22 },
+            { id: 's7', cat: 'Shoulders', type: 'weight', name: 'Rear Delt Fly (Machine / Dumbbell)', detail: 'Mempertegas bahu belakang dan postur bahu', calPerSet: 24 },
+            { id: 's8', cat: 'Shoulders', type: 'weight', name: 'Upright Row (Cable / EZ Bar)', detail: 'Kombinasi deltoid lateral dan trapezius atas', calPerSet: 28 },
+            { id: 's9', cat: 'Shoulders', type: 'weight', name: 'Lu Raises', detail: 'Lateral raise rentang penuh di atas kepala', calPerSet: 24 },
+            { id: 's10', cat: 'Shoulders', type: 'weight', name: 'Handstand Push-Up', detail: 'Beban tubuh lanjutan untuk kekuatan bahu murni', calPerSet: 40 },
+
+            // ARMS (LENGAN - BISEP & TRISEP)
+            { id: 'a1', cat: 'Arms', type: 'weight', name: 'Barbell Bicep Curl (Straight/EZ Bar)', detail: 'Pembangun massa dasar lingkar lengan atas', calPerSet: 26 },
+            { id: 'a2', cat: 'Arms', type: 'weight', name: 'Incline Dumbbell Curl', detail: 'Peregangan maksimal kepala panjang (long head) bisep', calPerSet: 24 },
+            { id: 'a3', cat: 'Arms', type: 'weight', name: 'Dumbbell Hammer Curl', detail: 'Fokus otot brachialis dan ketebalan lengan bawah', calPerSet: 24 },
+            { id: 'a4', cat: 'Arms', type: 'weight', name: 'Preacher Curl (Scott Bench)', detail: 'Mencegah ayunan tubuh, isolasi puncak bisep', calPerSet: 24 },
+            { id: 'a5', cat: 'Arms', type: 'weight', name: 'Concentration Curl', detail: 'Isolasi kontraksi puncak lengan satu sisi', calPerSet: 20 },
+            { id: 'a6', cat: 'Arms', type: 'weight', name: 'Cable Rope Bicep Curl', detail: 'Ketegangan merata sepanjang rentang fleksi siku', calPerSet: 22 },
+            { id: 'a7', cat: 'Arms', type: 'weight', name: '21s Bicep Curl', detail: 'Metode intensitas: 7 bawah + 7 atas + 7 penuh', calPerSet: 30 },
+            { id: 'a8', cat: 'Arms', type: 'weight', name: 'Skull Crushers (Lying Tricep Ext)', detail: 'Fokus kepala panjang trisep dengan EZ bar', calPerSet: 28 },
+            { id: 'a9', cat: 'Arms', type: 'weight', name: 'Tricep Rope Pushdown', detail: 'Isolasi lateral head trisep dengan bentangan tali', calPerSet: 24 },
+            { id: 'a10', cat: 'Arms', type: 'weight', name: 'Overhead Cable Tricep Extension', detail: 'Peregangan mendalam kepala panjang trisep', calPerSet: 25 },
+            { id: 'a11', cat: 'Arms', type: 'weight', name: 'Close-Grip Barbell Bench Press', detail: 'Tekanan compound dada/trisep beban berat', calPerSet: 34 },
+            { id: 'a12', cat: 'Arms', type: 'weight', name: 'Dips Focus Triceps', detail: 'Badan tegak lurus untuk dorongan penuh trisep', calPerSet: 32 },
+            { id: 'a13', cat: 'Arms', type: 'weight', name: 'Diamond Push-Ups', detail: 'Variasi push up rapat untuk membakar trisep', calPerSet: 24 },
+            { id: 'a14', cat: 'Arms', type: 'weight', name: 'Tricep Dumbbell Kickback', detail: 'Kontraksi isolasi akhir trisep posisi condong', calPerSet: 18 },
+
+            // CORE & ABS (PERUT)
+            { id: 'ab1', cat: 'Core', type: 'weight', name: 'Hanging Leg Raise (Bar / Ab Straps)', detail: 'Target perut bagian bawah dan fleksor panggul', calPerSet: 22 },
+            { id: 'ab2', cat: 'Core', type: 'weight', name: 'Cable Kneeling Crunch', detail: 'Beban terukur untuk hipertrofi otot six-pack', calPerSet: 22 },
+            { id: 'ab3', cat: 'Core', type: 'weight', name: 'Ab Wheel Rollout', detail: 'Anti-ekstensi stabilitas core paling menantang', calPerSet: 26 },
+            { id: 'ab4', cat: 'Core', type: 'weight', name: 'Cable Woodchoppers (High/Low)', detail: 'Rotasi fungsional otot obliques samping', calPerSet: 20 },
+            { id: 'ab5', cat: 'Core', type: 'weight', name: 'Plank & Side Plank Hold', detail: 'Kekuatan isometrik dan pelindung tulang belakang', calPerSet: 20 },
+            { id: 'ab6', cat: 'Core', type: 'weight', name: 'Russian Twists (Weighted Plate)', detail: 'Rotasi eksplosif melatih dinding samping perut', calPerSet: 20 },
+            { id: 'ab7', cat: 'Core', type: 'weight', name: 'Dragon Flag (Bruce Lee Move)', detail: 'Latihan lanjutan ketegangan total batang tubuh', calPerSet: 32 },
+            { id: 'ab8', cat: 'Core', type: 'weight', name: 'Captain Chair Knee / Leg Raise', detail: 'Sandaran siku stabil untuk perut bawah', calPerSet: 20 },
+            { id: 'ab9', cat: 'Core', type: 'weight', name: 'Bicycle Crunches', detail: 'Aktivasi kontraksi menyilang rectus & oblique', calPerSet: 18 },
+            { id: 'ab10', cat: 'Core', type: 'weight', name: 'Mountain Climbers', detail: 'Kombinasi kekuatan core dengan kardio dinamis', calPerSet: 25 },
+
+            // CARDIO & ENDURANCE MEGA LIST (KARDIO & OLAHRAGA DUNIA)
+            { id: 'cd1', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Lari Outdoor (Pace 6:00 min/km)', detail: 'Lari ketahanan jalan raya / trek lapangan', met: 9.8 },
+            { id: 'cd2', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Lari Cepat (Pace 5:00 min/km)', detail: 'Tempo run intensitas tinggi pembakar lemak cepat', met: 11.5 },
+            { id: 'cd3', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Lari Marathon / Pace Santai (7:00 min/km)', detail: 'Zone 2 kardio membakar lemak optimal', met: 8.3 },
+            { id: 'cd4', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Treadmill Incline Power Walk (Tanjakan 12%)', detail: 'Jalan nanjak tanpa benturan keras pada lutut', met: 7.5 },
+            { id: 'cd5', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Berenang Gaya Bebas (Freestyle)', detail: 'Kardio seluruh tubuh ramah persendian sendi', met: 8.5 },
+            { id: 'cd6', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Berenang Gaya Dada (Breaststroke)', detail: 'Ketahanan paru-paru dan otot dada/kaki', met: 7.0 },
+            { id: 'cd7', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Berenang Gaya Kupu-kupu (Butterfly)', detail: 'Intensitas tertinggi penguras energi di air', met: 11.0 },
+            { id: 'cd8', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Bersepeda Outdoor (Road / MTB)', detail: 'Gowes luar ruangan elevasi dan kecepatan dinamis', met: 8.0 },
+            { id: 'cd9', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Sepeda Statis Gym (Spinning RPM Tinggi)', detail: 'Latihan interval kayuhan stasioner dalam ruangan', met: 8.5 },
+            { id: 'cd10', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Lompat Tali (Jump Rope / Boxer Step)', detail: 'Kelincahan kaki, kardio tinggi & koordinasi', met: 11.8 },
+            { id: 'cd11', cat: 'Kardio & Olahraga', type: 'cardio', name: 'StairMaster (Mesin Tangga Gym)', detail: 'Pembakar kalori brutal fokus glutes & paha', met: 9.0 },
+            { id: 'cd12', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Rowing Machine (Mesin Dayung)', detail: '85% otot tubuh aktif dalam kayuhan ritmik', met: 8.5 },
+            { id: 'cd13', cat: 'Kardio & Olahraga', type: 'cardio', name: 'HIIT Calisthenics & Tabata (20s on / 10s off)', detail: 'EPOC afterburn effect pembakaran 24 jam', met: 10.5 },
+            { id: 'cd14', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Tinju / Heavy Bag & Shadow Boxing', detail: 'Kekuatan pukulan, rotasi pinggang & stamina', met: 9.5 },
+            { id: 'cd15', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Muay Thai / Kickboxing Sparing', detail: 'Tendangan, lutut, siku & kardio pertempuran', met: 10.5 },
+            { id: 'cd16', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Badminton (Bulutangkis Tunggal / Ganda)', detail: 'Sprint pendek, lompatan smash dan reaksi cepat', met: 7.8 },
+            { id: 'cd17', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Futsal / Sepak Bola Lapangan', detail: 'Permainan intensitas lari interval terus-menerus', met: 9.2 },
+            { id: 'cd18', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Bola Basket (Full-Court Game)', detail: 'Lompatan, dribble, akselerasi dan transisi tim', met: 8.0 },
+            { id: 'cd19', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Tenis Lapangan / Padel', detail: 'Ayunan raket dinamis dan langkah lateral', met: 7.5 },
+            { id: 'cd20', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Bola Voli (Indoor / Pantai)', detail: 'Spike, blok lompatan tinggi dan kelincahan pasir', met: 6.5 },
+            { id: 'cd21', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Rucking (Jalan dengan Beban Tas 10-15kg)', detail: 'Kardio militer pembakar kalori tinggi tanpa lari', met: 7.2 },
+            { id: 'cd22', cat: 'Kardio & Olahraga', type: 'cardio', name: 'Jalan Santai / Jalan Cepat Harian', detail: '10.000 langkah pemulihan aktif harian', met: 4.0 },
+            { id: 'cd23', cat: 'Kardio & Olahraga', type: 'cardio', name: 'CrossFit WOD (Metcon)', detail: 'Kombinasi angkat beban olimpiade dan aerobik', met: 11.0 }
+        ];
+
+        let selectedExerciseForLog = null;
+
+        const indonesianFoodDb = [
+            { name: 'Dada Ayam Bakar/Panggang', serving: '150g', cal: 248, p: 46.5, c: 0, f: 5.4, fiber: 0 },
+            { name: 'Nasi Putih Matang', serving: '1 centong (135g)', cal: 175, p: 3.5, c: 38, f: 0.3, fiber: 0.5 },
+            { name: 'Nasi Merah Matang', serving: '1 centong (135g)', cal: 148, p: 3.8, c: 31, f: 1.2, fiber: 2.8 },
+            { name: 'Telur Rebus Utuh (2 Butir)', serving: '100g', cal: 154, p: 12.6, c: 1.2, f: 10.6, fiber: 0 },
+            { name: 'Tempe Goreng / Bacem (2 Potong)', serving: '80g', cal: 160, p: 14, c: 9, f: 8, fiber: 3.5 },
+            { name: 'Ikan Salmon Grill', serving: '150g', cal: 312, p: 30, c: 0, f: 20, fiber: 0 },
+            { name: 'Whey Protein Isolate', serving: '1 scoop (32g)', cal: 120, p: 25, c: 2, f: 1, fiber: 0 },
+            { name: 'Pisang Cavendish', serving: '1 buah (118g)', cal: 105, p: 1.3, c: 27, f: 0.4, fiber: 3.1 }
+        ];
+
+        let weeklyChartInstance = null;
+
+        function showToast(msg) {
+            const box = document.getElementById('toastBox');
+            document.getElementById('toastMessage').innerHTML = msg;
+            box.classList.remove('hidden');
+            setTimeout(() => box.classList.add('hidden'), 3400);
+        }
+
+        // Navigation Switcher
+        function switchTab(tabId) {
+            document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+
+            ['dashboard', 'nutrition', 'gym', 'body', 'bmi'].forEach(id => {
+                const btn = document.getElementById(`navBtn-${id}`);
+                if (id === tabId) {
+                    btn.className = "flex-1 py-2 rounded-xl flex flex-col items-center gap-1 text-[11px] font-semibold transition nav-pill-active";
+                } else {
+                    btn.className = "flex-1 py-2 rounded-xl flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-white transition";
+                }
+            });
+            lucide.createIcons();
+        }
+
+        // Harian / Mingguan / Bulanan Scope Switcher
+        function switchScope(scope) {
+            ['daily', 'weekly', 'monthly'].forEach(s => {
+                document.getElementById(`scopeView-${s}`).classList.toggle('hidden', s !== scope);
+                const btn = document.getElementById(`scopeBtn-${s}`);
+                if (s === scope) {
+                    btn.className = "px-4 py-1.5 rounded-xl text-xs transition scope-pill-active";
+                } else {
+                    btn.className = "px-4 py-1.5 rounded-xl text-xs text-slate-400 hover:text-white transition";
+                }
+            });
+            if (scope === 'weekly' && weeklyChartInstance) {
+                weeklyChartInstance.update();
+            }
+        }
+
+        function getBmiEvaluation(bmi) {
+            if (appState.bmiStandard === 'asia') {
+                if (bmi < 18.5) return { label: 'Underweight', color: 'text-sky-400', badge: 'bg-sky-500/15 text-sky-400 border-sky-500/30' };
+                if (bmi <= 22.9) return { label: 'Ideal Normal', color: 'text-emerald-400', badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' };
+                if (bmi <= 24.9) return { label: 'Overweight Ringan', color: 'text-amber-400', badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30' };
+                return { label: 'Obesitas', color: 'text-rose-400', badge: 'bg-rose-500/15 text-rose-400 border-rose-500/30' };
+            } else {
+                if (bmi < 18.5) return { label: 'Underweight', color: 'text-sky-400', badge: 'bg-sky-500/15 text-sky-400 border-sky-500/30' };
+                if (bmi <= 24.9) return { label: 'Ideal Normal', color: 'text-emerald-400', badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' };
+                if (bmi <= 29.9) return { label: 'Overweight', color: 'text-amber-400', badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30' };
+                return { label: 'Obesitas', color: 'text-rose-400', badge: 'bg-rose-500/15 text-rose-400 border-rose-500/30' };
+            }
+        }
+
+        // MASTER RENDER FUNCTION (SYNCHRONIZES EVERY CARD, CHART, AND STATUS)
+        function renderAll() {
+            const calIn = Math.round(appState.meals.reduce((s, m) => s + m.cal, 0));
+            const calOut = Math.round(appState.workouts.reduce((s, w) => s + w.cal, 0));
+            const totalP = Math.round(appState.meals.reduce((s, m) => s + m.p, 0));
+            const totalC = Math.round(appState.meals.reduce((s, m) => s + m.c, 0));
+            const totalF = Math.round(appState.meals.reduce((s, m) => s + m.f, 0));
+
+            const targetCal = appState.targetCalories;
+            const remainingCal = Math.max(0, targetCal - calIn);
+            const netCal = Math.max(0, calIn - calOut);
+
+            // Header & Top Summary
+            const goalLabel = appState.goalMode === 'lose' ? 'Cutting' : (appState.goalMode === 'gain' ? 'Bulking' : 'Maintenance');
+            document.getElementById('headerGoalBadge').textContent = goalLabel;
+            document.getElementById('dashTopSummary').innerHTML =
+                `Target: <strong class="text-white">${targetCal.toLocaleString('id-ID')} kkal</strong> • BB <strong class="text-emerald-400">${appState.currentWeight.toFixed(1)} ➔ ${appState.targetWeight.toFixed(1)} kg</strong>`;
+
+            // 1. Update 4-Card Strip on Daily Dashboard
+            document.getElementById('stripWeight').textContent = appState.currentWeight.toFixed(1);
+            document.getElementById('stripFat').textContent = appState.currentBodyFat.toFixed(1);
+            document.getElementById('stripMuscle').textContent = appState.currentMuscle.toFixed(1);
+            document.getElementById('stripVisceral').textContent = appState.currentVisceral.toFixed(1);
+
+            // 2. Update 4-Card Strip on Tubuh & Foto Tab
+            document.getElementById('bodyTabWeight').textContent = appState.currentWeight.toFixed(1);
+            document.getElementById('bodyTabWeightTarget').textContent = `Target: ${appState.targetWeight.toFixed(1)} kg`;
+            document.getElementById('bodyTabFat').textContent = appState.currentBodyFat.toFixed(1);
+            document.getElementById('bodyTabFatTarget').textContent = `Target: ${appState.targetBodyFat.toFixed(1)}%`;
+            document.getElementById('bodyTabMuscle').textContent = appState.currentMuscle.toFixed(1);
+            document.getElementById('bodyTabMuscleTarget').textContent = `Target: ${appState.targetMuscle.toFixed(1)} kg`;
+            document.getElementById('bodyTabVisceral').textContent = appState.currentVisceral.toFixed(1);
+
+            // 3. Update Timbang & Status Hari Ini Card
+            const bmiVal = appState.currentWeight / Math.pow(appState.height / 100, 2);
+            const bmiEval = getBmiEvaluation(bmiVal);
+            document.getElementById('todayCardWeight').textContent = appState.currentWeight.toFixed(1);
+            const bmiBadgeEl = document.getElementById('todayCardBmiBadge');
+            bmiBadgeEl.textContent = `BMI ${bmiVal.toFixed(1)} • ${bmiEval.label}`;
+            bmiBadgeEl.className = `inline-block text-[11px] font-bold px-2.5 py-1 rounded-full border ${bmiEval.badge}`;
+
+            const diffKg = (appState.targetWeight - appState.currentWeight).toFixed(1);
+            const diffSign = diffKg > 0 ? '+' : '';
+            document.getElementById('todayCardGoalDiff').textContent = `Target: ${appState.targetWeight.toFixed(1)} kg (${diffSign}${diffKg} kg lagi)`;
+            document.getElementById('todayCardFat').textContent = `${appState.currentBodyFat.toFixed(1)}%`;
+            document.getElementById('todayCardMuscle').textContent = `${appState.currentMuscle.toFixed(1)} kg`;
+            document.getElementById('todayCardVisceral').textContent = `Lvl ${appState.currentVisceral.toFixed(1)}`;
+
+            // Secondary Body Metrics
+            const baseBmr = Math.round(10 * appState.currentWeight + 6.25 * appState.height - 5 * appState.age + (appState.gender === 'male' ? 5 : -161));
+            document.getElementById('bodySecondaryBmi').textContent = bmiVal.toFixed(1);
+            document.getElementById('bodySecondaryBmr').textContent = `${baseBmr.toLocaleString('id-ID')} kkal`;
+            document.getElementById('bodySecondaryWater').textContent = `${appState.currentWaterPct.toFixed(1)}%`;
+            document.getElementById('bodySecondaryBone').textContent = `${appState.currentBoneMass.toFixed(1)} kg`;
+
+            // 4. Update Calorie SVG Ring & Macro Bars
+            document.getElementById('dailyCalRemaining').textContent = remainingCal.toLocaleString('id-ID');
+            document.getElementById('dailyCalTarget').textContent = targetCal.toLocaleString('id-ID');
+            document.getElementById('dailyCalIn').textContent = calIn.toLocaleString('id-ID');
+            document.getElementById('dailyCalOut').textContent = calOut.toLocaleString('id-ID');
+            document.getElementById('dailyCalNet').textContent = netCal.toLocaleString('id-ID');
+
+            const pctCal = Math.min(1, calIn / Math.max(1, targetCal));
+            const circumference = 314.16;
+            const ringEl = document.getElementById('dailyCalRingArc');
+            ringEl.style.strokeDashoffset = (circumference * (1 - pctCal)).toFixed(1);
+            ringEl.setAttribute('stroke', calIn > targetCal ? '#F43F5E' : '#10B981');
+
+            document.getElementById('dailyMacroPText').textContent = `${totalP}g / ${appState.targetProtein}g`;
+            document.getElementById('dailyMacroPBar').style.width = `${Math.min(100, Math.round((totalP / appState.targetProtein) * 100))}%`;
+            document.getElementById('dailyMacroCText').textContent = `${totalC}g / ${appState.targetCarbs}g`;
+            document.getElementById('dailyMacroCBar').style.width = `${Math.min(100, Math.round((totalC / appState.targetCarbs) * 100))}%`;
+            document.getElementById('dailyMacroFText').textContent = `${totalF}g / ${appState.targetFat}g`;
+            document.getElementById('dailyMacroFBar').style.width = `${Math.min(100, Math.round((totalF / appState.targetFat) * 100))}%`;
+
+            // WA Alert status
+            const waBadge = document.getElementById('waAlertStatusBadge');
+            if (calIn > targetCal) {
+                waBadge.textContent = 'Melebihi Target (>100%)';
+                waBadge.className = 'text-rose-400 font-bold';
+            } else if (calIn < targetCal * 0.5) {
+                waBadge.textContent = 'Kurang dari 50% Target';
+                waBadge.className = 'text-amber-400 font-bold';
+            } else {
+                waBadge.textContent = 'Optimal Sesuai Target';
+                waBadge.className = 'text-emerald-400 font-bold';
+            }
+
+            // 5. Update Weekly & Monthly Sync
+            appState.weeklyWeights[6] = appState.currentWeight;
+            const avgW = (appState.weeklyWeights.reduce((a, b) => a + b, 0) / 7).toFixed(1);
+            document.getElementById('weeklyAvgWeight').textContent = `${avgW} kg`;
+            document.getElementById('weeklyLatestBadge').textContent = `Hari Ini: ${appState.currentWeight.toFixed(1)} kg`;
+            if (weeklyChartInstance) {
+                weeklyChartInstance.data.datasets[0].data = appState.weeklyWeights;
+                weeklyChartInstance.update();
+            }
+
+            const wDelta30 = (appState.currentWeight - 74.2).toFixed(1);
+            document.getElementById('monthlyDeltaWeight').textContent = `74.2 kg ➔ ${appState.currentWeight.toFixed(1)} kg (${wDelta30 > 0 ? '+' : ''}${wDelta30} kg)`;
+            const fDelta30 = (appState.currentBodyFat - 20.4).toFixed(1);
+            document.getElementById('monthlyDeltaFat').textContent = `20.4% ➔ ${appState.currentBodyFat.toFixed(1)}% (${fDelta30 > 0 ? '+' : ''}${fDelta30}%)`;
+            const mDelta30 = (appState.currentMuscle - 54.1).toFixed(1);
+            document.getElementById('monthlyDeltaMuscle').textContent = `54.1 kg ➔ ${appState.currentMuscle.toFixed(1)} kg (${mDelta30 > 0 ? '+' : ''}${mDelta30} kg)`;
+            document.getElementById('monthlyNowCaption').textContent = `${appState.currentWeight.toFixed(1)} kg • ${appState.currentBodyFat.toFixed(1)}% Fat`;
+
+            // 6. Sync Manual Target Form Inputs
+            document.getElementById('manualCalInput').value = appState.targetCalories;
+            document.getElementById('manualProtInput').value = appState.targetProtein;
+            document.getElementById('manualCarbInput').value = appState.targetCarbs;
+            document.getElementById('manualFatInput').value = appState.targetFat;
+            document.getElementById('manualTargetWeightInput').value = appState.targetWeight;
+            document.getElementById('manualTargetBodyFatInput').value = appState.targetBodyFat;
+            document.getElementById('manualTargetMuscleInput').value = appState.targetMuscle;
+
+            renderMorningSchedules();
+            renderFatSecretDiary(calIn, remainingCal, totalP, totalC, totalF);
+            renderWaterGlasses();
+            renderGymSection(calOut);
+        }
+
+        // AI Vision Meal Scanner Modal Logic
+        let aiTargetMealBucket = 'sarapan';
+
+        function openAiMealScannerModal(bucket = 'sarapan') {
+            setAiTargetBucket(bucket);
+            document.getElementById('aiFoodModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeAiMealScannerModal() {
+            document.getElementById('aiFoodModal').classList.add('hidden');
+        }
+
+        function setAiTargetBucket(bucket) {
+            aiTargetMealBucket = bucket;
+            ['sarapan', 'siang', 'malam', 'camilan'].forEach(b => {
+                const btn = document.getElementById(`aiBucketBtn-${b}`);
+                if (b === bucket) {
+                    btn.className = "py-1.5 rounded-xl border font-semibold bg-emerald-500/20 border-emerald-500 text-emerald-300";
+                } else {
+                    btn.className = "py-1.5 rounded-xl border font-semibold bg-[#161F30] border-white/[0.08] text-slate-400";
+                }
+            });
+        }
+
+        function handleAiFoodImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imgPreview = document.getElementById('aiFoodImagePreview');
+                imgPreview.src = e.target.result;
+                imgPreview.classList.remove('hidden');
+                document.getElementById('aiFoodUploadPrompt').classList.add('hidden');
+
+                // Simulate Vision AI extraction
+                const loading = document.getElementById('aiFoodLoadingState');
+                loading.classList.remove('hidden');
+
+                setTimeout(() => {
+                    loading.classList.add('hidden');
+                    // Intelligent mockup based on filename or randomized nutritious food
+                    const sampleDishes = [
+                        { name: 'Dada Ayam Grill & Nasi Merah', serving: '1 Piring (320g)', cal: 485, p: 44.2, c: 52.0, f: 11.4, fiber: 4.5, sugar: '2.5g', sodium: '480mg' },
+                        { name: 'Salmon Panggang & Brokoli Rebus', serving: '1 Porsi (280g)', cal: 420, p: 38.0, c: 14.5, f: 22.0, fiber: 5.2, sugar: '1.8g', sodium: '390mg' },
+                        { name: 'Oatmeal Buah Beri & Telur Rebus', serving: '1 Mangkok + 2 Butir Telur', cal: 360, p: 21.0, c: 45.0, f: 10.5, fiber: 6.0, sugar: '8.4g', sodium: '210mg' }
+                    ];
+                    const selected = sampleDishes[Math.floor(Math.random() * sampleDishes.length)];
+
+                    document.getElementById('aiFoodNameInput').value = selected.name;
+                    document.getElementById('aiFoodServingInput').value = selected.serving;
+                    document.getElementById('aiFoodCalInput').value = selected.cal;
+                    document.getElementById('aiFoodProtInput').value = selected.p;
+                    document.getElementById('aiFoodCarbInput').value = selected.c;
+                    document.getElementById('aiFoodFatInput').value = selected.f;
+                    document.getElementById('aiFoodFiberInput').value = selected.fiber;
+                    document.getElementById('aiFoodSugarText').textContent = selected.sugar;
+                    document.getElementById('aiFoodSodiumText').textContent = selected.sodium;
+
+                    showToast(`Foto makanan dianalisis AI: ${selected.name} (${selected.cal} kkal)`);
+                }, 1000);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function commitAiMealEntry() {
+            const name = document.getElementById('aiFoodNameInput').value.trim() || 'Makanan AI';
+            const serving = document.getElementById('aiFoodServingInput').value.trim() || '1 porsi';
+            const cal = parseFloat(document.getElementById('aiFoodCalInput').value) || 0;
+            const p = parseFloat(document.getElementById('aiFoodProtInput').value) || 0;
+            const c = parseFloat(document.getElementById('aiFoodCarbInput').value) || 0;
+            const f = parseFloat(document.getElementById('aiFoodFatInput').value) || 0;
+            const fiber = parseFloat(document.getElementById('aiFoodFiberInput').value) || 0;
+
+            appState.meals.push({ id: Date.now(), bucket: aiTargetMealBucket, name: `📸 ${name}`, serving, cal, p, c, f, fiber });
+            closeAiMealScannerModal();
+            renderAll();
+            showToast(`Makanan berhasil dicatat ke ${aiTargetMealBucket}!`);
+        }
+
+        // FatSecret Diary Render
+        function renderFatSecretDiary(calIn, remainingCal, totalP, totalC, totalF) {
+            const rdiPct = Math.round((calIn / Math.max(1, appState.targetCalories)) * 100);
+            document.getElementById('fsRdiPercent').textContent = `${rdiPct}%`;
+            document.getElementById('fsCalIn').textContent = `${calIn.toLocaleString('id-ID')} kkal`;
+            document.getElementById('fsKilojoule').textContent = `${Math.round(calIn * 4.184).toLocaleString('id-ID')} kJ`;
+            document.getElementById('fsCalRem').textContent = `${remainingCal.toLocaleString('id-ID')} kkal`;
+            document.getElementById('fsTargetSub').textContent = `Target RDI: ${appState.targetCalories.toLocaleString('id-ID')} kkal`;
+
+            const macroSum = Math.max(1, totalC * 4 + totalP * 4 + totalF * 9);
+            const cPct = Math.round(((totalC * 4) / macroSum) * 100);
+            const pPct = Math.round(((totalP * 4) / macroSum) * 100);
+            const fPct = Math.max(0, 100 - cPct - pPct);
+
+            document.getElementById('fsBarCarb').style.width = `${cPct}%`;
+            document.getElementById('fsBarProt').style.width = `${pPct}%`;
+            document.getElementById('fsBarFat').style.width = `${fPct}%`;
+
+            document.getElementById('fsLegendCarb').textContent = `${totalC}g (${cPct}%)`;
+            document.getElementById('fsLegendProt').textContent = `${totalP}g (${pPct}%)`;
+            document.getElementById('fsLegendFat').textContent = `${totalF}g (${fPct}%)`;
+
+            const buckets = [
+                { key: 'sarapan', title: 'Sarapan Pagi (Breakfast)', icon: 'coffee', color: 'text-amber-400' },
+                { key: 'siang', title: 'Makan Siang (Lunch)', icon: 'sun', color: 'text-emerald-400' },
+                { key: 'malam', title: 'Makan Malam (Dinner)', icon: 'moon', color: 'text-sky-400' },
+                { key: 'camilan', title: 'Camilan & Suplemen (Snacks)', icon: 'apple', color: 'text-purple-400' }
+            ];
+
+            const container = document.getElementById('fatSecretBucketsContainer');
+            container.innerHTML = buckets.map(b => {
+                const items = appState.meals.filter(m => m.bucket === b.key);
+                const subCal = Math.round(items.reduce((s, m) => s + m.cal, 0));
+                return `
+                    <div class="apple-card p-4 sm:p-5 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-bold text-white">${b.title}</h3>
+                                <span class="text-[11px] text-slate-400 font-mono">Subtotal: <strong class="text-emerald-400">${subCal} kkal</strong></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openAiMealScannerModal('${b.key}')" class="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-400/20 hover:from-emerald-500/30 hover:to-teal-400/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center gap-1 transition" title="Scan AI Kamera">
+                                    <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+                                    <span class="hidden sm:inline">Scan AI</span>
+                                </button>
+                                <button onclick="openFoodModal('${b.key}')" class="px-3 py-1.5 rounded-xl bg-[#161F30] hover:bg-slate-800 text-slate-200 border border-white/[0.08] text-xs font-bold transition">
+                                    + Tambah
+                                </button>
+                            </div>
+                        </div>
+                        ${items.length === 0 ? `<p class="text-xs text-slate-500 italic">Belum ada catatan makanan.</p>` : `
+                            <div class="space-y-2">
+                                ${items.map(item => `
+                                    <div class="p-3 rounded-xl bg-[#161F30] flex items-center justify-between text-xs">
+                                        <div>
+                                            <span class="font-bold text-white block">${item.name}</span>
+                                            <span class="text-[11px] text-slate-400">${item.serving} • P: ${item.p}g | K: ${item.c}g | L: ${item.f}g</span>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <span class="font-mono font-bold text-emerald-400">${item.cal} kkal</span>
+                                            <button onclick="deleteFoodItem(${item.id})" class="text-slate-500 hover:text-rose-400">✕</button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Gym & Mega Exercise Engine
+        let selectedGymCategoryFilter = 'Semua';
+
+        function renderGymSection(calOut) {
+            document.getElementById('gymTotalBurnBadge').textContent = `Terbakar Hari Ini: ${calOut.toLocaleString('id-ID')} kkal`;
+
+            // Calculate total volume lifted
+            const totalVol = appState.workouts.reduce((s, w) => s + (w.volume || 0), 0);
+            document.getElementById('gymTotalVolumeText').textContent = `Total Volume Angkatan: ${totalVol.toLocaleString('id-ID')} kg`;
+
+            // Filter pills
+            const categories = ['Semua', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Kardio & Olahraga'];
+            document.getElementById('gymCategoryPills').innerHTML = categories.map(cat => `
+                <button onclick="filterGymCategory('${cat}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${selectedGymCategoryFilter === cat ? 'bg-emerald-500 text-slate-950 font-bold' : 'bg-[#161F30] text-slate-300 hover:text-white'}">
+                    ${cat}
+                </button>
+            `).join('');
+
+            filterGymCatalog();
+
+            // Logged workouts list
+            document.getElementById('loggedWorkoutsList').innerHTML = appState.workouts.length === 0
+                ? `<p class="text-xs text-slate-500 italic">Belum ada sesi olahraga yang dicatat hari ini.</p>`
+                : appState.workouts.map(w => `
+                <div class="p-3 rounded-xl bg-[#161F30] flex items-center justify-between text-xs">
+                    <div>
+                        <span class="font-bold text-white block">${w.name}</span>
+                        <span class="text-[11px] text-slate-400">${w.detail}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="font-mono font-bold text-amber-400">-${w.cal} kkal</span>
+                        <button onclick="removeWorkout(${w.id})" class="text-slate-500 hover:text-rose-400">✕</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterGymCategory(cat) {
+            selectedGymCategoryFilter = cat;
+            renderGymSection(Math.round(appState.workouts.reduce((s, w) => s + w.cal, 0)));
+        }
+
+        function filterGymCatalog() {
+            const query = (document.getElementById('gymSearchInput')?.value || '').toLowerCase();
+            let filtered = megaExercises.filter(ex => {
+                const matchesCat = selectedGymCategoryFilter === 'Semua' || ex.cat === selectedGymCategoryFilter;
+                const matchesQuery = ex.name.toLowerCase().includes(query) || ex.detail.toLowerCase().includes(query) || ex.cat.toLowerCase().includes(query);
+                return matchesCat && matchesQuery;
+            });
+
+            document.getElementById('gymResultsCount').textContent = `Ditemukan ${filtered.length} variasi latihan`;
+
+            document.getElementById('gymCatalogGrid').innerHTML = filtered.map(ex => `
+                <div class="p-3.5 rounded-2xl bg-[#161F30] border border-white/[0.06] flex items-center justify-between hover:border-white/[0.12] transition">
+                    <div class="pr-2">
+                        <div class="flex items-center gap-1.5 mb-1">
+                            <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${ex.type === 'cardio' ? 'bg-amber-500/15 text-amber-400' : 'bg-sky-500/15 text-sky-400'}">${ex.cat}</span>
+                            <span class="text-xs font-bold text-white truncate max-w-[170px] sm:max-w-[210px]">${ex.name}</span>
+                        </div>
+                        <span class="text-[11px] text-slate-400 line-clamp-1">${ex.detail}</span>
+                        <span class="text-[11px] font-mono font-bold block mt-1 ${ex.type === 'cardio' ? 'text-amber-400' : 'text-emerald-400'}">
+                            ${ex.type === 'cardio' ? `🔥 METs: ${ex.met} (~${Math.round(ex.met * 35)} kkal/30m)` : `⚡ ~${ex.calPerSet * 4} kkal (4 Set)`}
+                        </span>
+                    </div>
+                    <button onclick="openWorkoutLogModal('${ex.id}')" class="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition shrink-0">
+                        + Catat
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function openWorkoutLogModal(exerciseId) {
+            selectedExerciseForLog = megaExercises.find(x => x.id === exerciseId);
+            if (!selectedExerciseForLog) return;
+
+            document.getElementById('workoutLogModalTitle').textContent = selectedExerciseForLog.name;
+            document.getElementById('workoutLogModalSub').textContent = `${selectedExerciseForLog.cat} • ${selectedExerciseForLog.type === 'cardio' ? 'Kardio & Ketahanan' : 'Latihan Beban'}`;
+
+            const weightsForm = document.getElementById('workoutWeightsForm');
+            const cardioForm = document.getElementById('workoutCardioForm');
+
+            if (selectedExerciseForLog.type === 'cardio') {
+                weightsForm.classList.add('hidden');
+                cardioForm.classList.remove('hidden');
+                document.getElementById('workoutDurationInput').value = 30;
+                if (selectedExerciseForLog.met) {
+                    document.getElementById('workoutIntensityInput').value = Math.min(12, Math.max(6, Math.round(selectedExerciseForLog.met)));
+                }
+            } else {
+                weightsForm.classList.remove('hidden');
+                cardioForm.classList.add('hidden');
+                document.getElementById('workoutSetsInput').value = 4;
+                document.getElementById('workoutRepsInput').value = 10;
+                document.getElementById('workoutWeightInput').value = 50;
+            }
+
+            calculateWorkoutDetails();
+            document.getElementById('workoutLogModal').classList.remove('hidden');
+        }
+
+        function closeWorkoutLogModal() {
+            document.getElementById('workoutLogModal').classList.add('hidden');
+        }
+
+        function calculateWorkoutDetails() {
+            if (!selectedExerciseForLog) return;
+
+            if (selectedExerciseForLog.type === 'cardio') {
+                const duration = parseFloat(document.getElementById('workoutDurationInput').value) || 30;
+                const mets = parseFloat(document.getElementById('workoutIntensityInput').value) || (selectedExerciseForLog.met || 8);
+                // Accurate METs calorie calculation formula: Calories = (MET * 3.5 * weight_kg / 200) * duration_minutes
+                const cal = Math.round((mets * 3.5 * appState.currentWeight / 200) * duration);
+                document.getElementById('workoutCalResult').value = cal;
+            } else {
+                const sets = parseInt(document.getElementById('workoutSetsInput').value) || 4;
+                const reps = parseInt(document.getElementById('workoutRepsInput').value) || 10;
+                const weight = parseFloat(document.getElementById('workoutWeightInput').value) || 0;
+                const totalVol = sets * reps * weight;
+                document.getElementById('workoutVolumeResult').textContent = `${totalVol.toLocaleString('id-ID')} kg`;
+
+                const baseCalPerSet = selectedExerciseForLog.calPerSet || 30;
+                const weightFactor = 1 + (weight / 150);
+                const cal = Math.round(sets * baseCalPerSet * weightFactor);
+                document.getElementById('workoutCalResult').value = cal;
+            }
+        }
+
+        function commitWorkoutEntry() {
+            if (!selectedExerciseForLog) return;
+            const cal = parseInt(document.getElementById('workoutCalResult').value) || 100;
+            let detail = '';
+            let volume = 0;
+
+            if (selectedExerciseForLog.type === 'cardio') {
+                const duration = document.getElementById('workoutDurationInput').value;
+                detail = `${duration} Menit • Intensitas Sedang/Tinggi`;
+            } else {
+                const sets = document.getElementById('workoutSetsInput').value;
+                const reps = document.getElementById('workoutRepsInput').value;
+                const weight = document.getElementById('workoutWeightInput').value;
+                volume = sets * reps * weight;
+                detail = `${sets} Set × ${reps} Reps • ${weight} kg`;
+            }
+
+            appState.workouts.push({
+                id: Date.now(),
+                name: selectedExerciseForLog.name,
+                detail: detail,
+                cal: cal,
+                volume: volume
+            });
+
+            closeWorkoutLogModal();
+            renderAll();
+            showToast(`${selectedExerciseForLog.name} (-${cal} kkal) berhasil dicatat!`);
+        }
+
+        // Schedules, Water, Body Edit, Modals & Handlers
+        function renderMorningSchedules() {
+            const container = document.getElementById('morningScheduleList');
+            container.innerHTML = appState.schedules.map(item => `
+                <div onclick="toggleScheduleDone(${item.id})" class="p-3 rounded-xl bg-[#161F30] border border-white/[0.05] flex items-center justify-between cursor-pointer hover:border-white/[0.12] transition">
+                    <div class="flex items-center gap-2.5 text-xs">
+                        <div class="w-4 h-4 rounded-md border ${item.done ? 'bg-emerald-500 border-emerald-500 text-slate-950' : 'border-slate-500'} flex items-center justify-center">
+                            ${item.done ? '✓' : ''}
+                        </div>
+                        <span class="font-mono text-[11px] text-emerald-400 font-bold">${item.time}</span>
+                        <span class="${item.done ? 'line-through text-slate-500' : 'text-slate-200'}">${item.text}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleScheduleDone(id) {
+            const s = appState.schedules.find(x => x.id === id);
+            if (s) s.done = !s.done;
+            renderMorningSchedules();
+        }
+
+        function addMorningSchedule() {
+            const input = document.getElementById('newScheduleInput');
+            if (!input.value.trim()) return;
+            appState.schedules.push({ id: Date.now(), time: '08:00', text: input.value.trim(), done: false });
+            input.value = '';
+            renderMorningSchedules();
+            showToast('Jadwal pagi berhasil ditambahkan');
+        }
+
+        function changeDiaryDay(delta) {
+            appState.diaryDayOffset += delta;
+            const d = new Date(2026, 9, 25 + appState.diaryDayOffset);
+            const label = appState.diaryDayOffset === 0 ? 'Hari Ini, ' : '';
+            document.getElementById('diaryDateLabel').textContent = label + d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function openFoodModal(bucket) {
+            appState.activeMealBucket = bucket;
+            const titles = { sarapan: 'Sarapan', siang: 'Makan Siang', malam: 'Makan Malam', camilan: 'Camilan / Suplemen' };
+            document.getElementById('foodModalTitle').textContent = `Tambah Makanan — ${titles[bucket]}`;
+
+            const dbList = document.getElementById('foodQuickDbList');
+            dbList.innerHTML = indonesianFoodDb.map((f, idx) => `
+                <button onclick="selectDbFood(${idx})" class="p-2.5 rounded-xl bg-[#161F30] hover:bg-slate-800 border border-white/[0.06] text-left transition">
+                    <span class="text-xs font-bold text-white block truncate">${f.name}</span>
+                    <span class="text-[10px] text-emerald-400 font-mono">${f.cal} kkal • ${f.p}g P</span>
+                </button>
+            `).join('');
+
+            document.getElementById('foodModal').classList.remove('hidden');
+        }
+
+        function closeFoodModal() {
+            document.getElementById('foodModal').classList.add('hidden');
+        }
+
+        function selectDbFood(idx) {
+            const f = indonesianFoodDb[idx];
+            document.getElementById('foodNameInput').value = f.name;
+            document.getElementById('foodServingInput').value = f.serving;
+            document.getElementById('foodCalInput').value = f.cal;
+            document.getElementById('foodProtInput').value = f.p;
+            document.getElementById('foodCarbInput').value = f.c;
+            document.getElementById('foodFatInput').value = f.f;
+            document.getElementById('foodFiberInput').value = f.fiber;
+        }
+
+        function simulateAiMealPhoto(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('foodNameInput').value = `AI Scan: Nasi Ayam Bakar & Lalapan`;
+            document.getElementById('foodServingInput').value = '1 Porsi Lengkap (320g)';
+            document.getElementById('foodCalInput').value = 465;
+            document.getElementById('foodProtInput').value = 38.5;
+            document.getElementById('foodCarbInput').value = 49.0;
+            document.getElementById('foodFatInput').value = 12.0;
+            document.getElementById('foodFiberInput').value = 4.2;
+            showToast('Foto makanan dianalisis AI: 465 kkal (38.5g Protein)');
+        }
+
+        function saveFoodEntry() {
+            const name = document.getElementById('foodNameInput').value.trim() || 'Makanan Harian';
+            const serving = document.getElementById('foodServingInput').value.trim() || '1 porsi';
+            const cal = parseFloat(document.getElementById('foodCalInput').value) || 0;
+            const p = parseFloat(document.getElementById('foodProtInput').value) || 0;
+            const c = parseFloat(document.getElementById('foodCarbInput').value) || 0;
+            const f = parseFloat(document.getElementById('foodFatInput').value) || 0;
+            const fiber = parseFloat(document.getElementById('foodFiberInput').value) || 0;
+
+            appState.meals.push({ id: Date.now(), bucket: appState.activeMealBucket, name, serving, cal, p, c, f, fiber });
+            closeFoodModal();
+            renderAll();
+            showToast(`${name} (${cal} kkal) ditambahkan`);
+        }
+
+        function deleteFoodItem(id) {
+            appState.meals = appState.meals.filter(m => m.id !== id);
+            renderAll();
+        }
+
+        function openNutritionFactsModal() {
+            const cal = Math.round(appState.meals.reduce((s, m) => s + m.cal, 0));
+            const p = appState.meals.reduce((s, m) => s + m.p, 0).toFixed(1);
+            const c = appState.meals.reduce((s, m) => s + m.c, 0).toFixed(1);
+            const f = appState.meals.reduce((s, m) => s + m.f, 0).toFixed(1);
+            const fiber = appState.meals.reduce((s, m) => s + (m.fiber || 0), 0).toFixed(1);
+
+            document.getElementById('nutritionFactsBody').innerHTML = `
+                <div class="flex justify-between py-1.5 border-b border-white/[0.07]"><span>Energi Total</span><strong class="text-white">${cal} kkal (${Math.round(cal * 4.184)} kJ)</strong></div>
+                <div class="flex justify-between py-1.5 border-b border-white/[0.07]"><span>Protein Total</span><strong class="text-emerald-400">${p} g / ${appState.targetProtein} g</strong></div>
+                <div class="flex justify-between py-1.5 border-b border-white/[0.07]"><span>Karbohidrat Total</span><strong class="text-sky-400">${c} g / ${appState.targetCarbs} g</strong></div>
+                <div class="flex justify-between py-1.5 border-b border-white/[0.07]"><span>Lemak Total</span><strong class="text-amber-400">${f} g / ${appState.targetFat} g</strong></div>
+                <div class="flex justify-between py-1.5 border-b border-white/[0.07]"><span>Serat Pangan (Dietary Fiber)</span><strong class="text-white">${fiber} g / 28 g</strong></div>
+                <div class="flex justify-between py-1.5"><span>Natrium (Estimasi)</span><strong class="text-white">640 mg / 2.000 mg</strong></div>
+            `;
+            document.getElementById('nutritionFactsModal').classList.remove('hidden');
+        }
+
+        function renderWaterGlasses() {
+            document.getElementById('waterStatusText').textContent = `${(appState.waterGlasses * 250).toLocaleString('id-ID')} / 2.500 ml (${appState.waterGlasses} Gelas)`;
+            const row = document.getElementById('waterGlassesRow');
+            let html = '';
+            for (let i = 1; i <= 10; i++) {
+                const filled = i <= appState.waterGlasses;
+                html += `
+                    <button onclick="setWaterGlass(${i})" class="py-2.5 rounded-xl border ${filled ? 'bg-sky-500/20 border-sky-400 text-sky-300' : 'bg-[#161F30] border-white/[0.06] text-slate-500'} text-xs font-bold transition">
+                        💧 ${i}
+                    </button>
+                `;
+            }
+            row.innerHTML = html;
+        }
+
+        function setWaterGlass(n) {
+            appState.waterGlasses = n;
+            renderWaterGlasses();
+        }
+
+        function removeWorkout(id) {
+            appState.workouts = appState.workouts.filter(w => w.id !== id);
+            renderAll();
+        }
+
+        function handleUniversalScaleScan(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            appState.currentWeight = 70.9;
+            appState.currentBodyFat = 17.3;
+            appState.currentMuscle = 56.0;
+            appState.currentVisceral = 5.5;
+
+            document.getElementById('bmiCurrentWeight').value = appState.currentWeight;
+            document.getElementById('bmiCurrentFat').value = appState.currentBodyFat;
+            document.getElementById('bmiCurrentMuscle').value = appState.currentMuscle;
+            document.getElementById('bmiCurrentVisceral').value = appState.currentVisceral;
+
+            recalculateBmiEngine();
+            renderAll();
+            showToast(`Data Timbangan (${file.name}) berhasil dipindai: BB ${appState.currentWeight} kg, Body Fat ${appState.currentBodyFat}%, Otot ${appState.currentMuscle} kg`);
+        }
+
+        function openBodyEditModal() {
+            document.getElementById('modalWeight').value = appState.currentWeight;
+            document.getElementById('modalFat').value = appState.currentBodyFat;
+            document.getElementById('modalMuscle').value = appState.currentMuscle;
+            document.getElementById('modalVisceral').value = appState.currentVisceral;
+            document.getElementById('modalWater').value = appState.currentWaterPct;
+            document.getElementById('modalBone').value = appState.currentBoneMass;
+            document.getElementById('bodyEditModal').classList.remove('hidden');
+        }
+
+        function closeBodyEditModal() {
+            document.getElementById('bodyEditModal').classList.add('hidden');
+        }
+
+        function saveBodyEditModal() {
+            appState.currentWeight = parseFloat(document.getElementById('modalWeight').value) || appState.currentWeight;
+            appState.currentBodyFat = parseFloat(document.getElementById('modalFat').value) || appState.currentBodyFat;
+            appState.currentMuscle = parseFloat(document.getElementById('modalMuscle').value) || appState.currentMuscle;
+            appState.currentVisceral = parseFloat(document.getElementById('modalVisceral').value) || appState.currentVisceral;
+            appState.currentWaterPct = parseFloat(document.getElementById('modalWater').value) || appState.currentWaterPct;
+            appState.currentBoneMass = parseFloat(document.getElementById('modalBone').value) || appState.currentBoneMass;
+
+            document.getElementById('bmiCurrentWeight').value = appState.currentWeight;
+            document.getElementById('bmiCurrentFat').value = appState.currentBodyFat;
+            document.getElementById('bmiCurrentMuscle').value = appState.currentMuscle;
+            document.getElementById('bmiCurrentVisceral').value = appState.currentVisceral;
+
+            recalculateBmiEngine();
+            closeBodyEditModal();
+            renderAll();
+            showToast(`Timbangan diperbarui: ${appState.currentWeight} kg • Fat ${appState.currentBodyFat}% • Muscle ${appState.currentMuscle} kg`);
+        }
+
+        function previewBodyPhoto(event, side) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById(`photoPreview${side}`);
+                const ph = document.getElementById(`photoPlaceholder${side}`);
+                img.src = e.target.result;
+                img.classList.remove('hidden');
+                ph.classList.add('hidden');
+                showToast(`Foto tubuh tampak ${side} berhasil disimpan`);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function setBmiStandard(std) {
+            appState.bmiStandard = std;
+            document.getElementById('stdBtn-asia').className = std === 'asia' ? 'px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 font-bold' : 'px-2.5 py-1 rounded-lg text-slate-400';
+            document.getElementById('stdBtn-who').className = std === 'who' ? 'px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 font-bold' : 'px-2.5 py-1 rounded-lg text-slate-400';
+            recalculateBmiEngine();
+            renderAll();
+        }
+
+        function setGoalMode(mode) {
+            appState.goalMode = mode;
+            ['lose', 'maintain', 'gain'].forEach(m => {
+                const btn = document.getElementById(`goalBtn-${m}`);
+                if (m === mode) {
+                    btn.className = "py-2 rounded-xl text-[11px] font-bold bg-emerald-500/20 border border-emerald-500 text-emerald-300";
+                } else {
+                    btn.className = "py-2 rounded-xl text-[11px] font-semibold bg-[#161F30] border border-white/[0.07] text-slate-400";
+                }
+            });
+            recalculateBmiEngine();
+        }
+
+        function syncInputFromSlider(val) {
+            document.getElementById('bmiTargetWeightInput').value = parseFloat(val).toFixed(1);
+            recalculateBmiEngine();
+        }
+
+        function syncSliderFromInput(val) {
+            const num = parseFloat(val) || 66.0;
+            document.getElementById('bmiTargetWeightSlider').value = num;
+            recalculateBmiEngine();
+        }
+
+        function recalculateBmiEngine() {
+            const gender = document.getElementById('bmiGender').value;
+            const age = parseInt(document.getElementById('bmiAge').value) || 27;
+            const height = parseFloat(document.getElementById('bmiHeight').value) || 175;
+            const weight = parseFloat(document.getElementById('bmiCurrentWeight').value) || 71.4;
+            const activity = parseFloat(document.getElementById('bmiActivity').value) || 1.55;
+            const targetW = parseFloat(document.getElementById('bmiTargetWeightInput').value) || 66.0;
+
+            const hMeter = height / 100;
+            const bmi = weight / (hMeter * hMeter);
+            const targetBmi = targetW / (hMeter * hMeter);
+            const evalObj = getBmiEvaluation(bmi);
+
+            const maxIdealBmi = appState.bmiStandard === 'asia' ? 22.9 : 24.9;
+            const minIdealW = (18.5 * hMeter * hMeter).toFixed(1);
+            const maxIdealW = (maxIdealBmi * hMeter * hMeter).toFixed(1);
+
+            document.getElementById('bmiIdealRangeText').textContent = `Rentang BMI Ideal: ${minIdealW} kg – ${maxIdealW} kg`;
+            document.getElementById('bmiTargetBmiPreview').textContent = `Target BMI: ${targetBmi.toFixed(1)}`;
+
+            document.getElementById('calcOutBmi').textContent = bmi.toFixed(1);
+            const catEl = document.getElementById('calcOutBmiCat');
+            catEl.textContent = evalObj.label;
+            catEl.className = `ml-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full border ${evalObj.badge}`;
+
+            const bmr = Math.round(10 * weight + 6.25 * height - 5 * age + (gender === 'male' ? 5 : -161));
+            const tdee = Math.round(bmr * activity);
+            document.getElementById('calcOutTdee').textContent = `${bmr.toLocaleString('id-ID')} / ${tdee.toLocaleString('id-ID')} kkal`;
+
+            let recCal = tdee;
+            if (appState.goalMode === 'lose') recCal = Math.max(1200, tdee - 500);
+            if (appState.goalMode === 'gain') recCal = tdee + 400;
+
+            const recP = Math.round((recCal * 0.30) / 4);
+            const recC = Math.round((recCal * 0.40) / 4);
+            const recF = Math.round((recCal * 0.30) / 9);
+
+            document.getElementById('calcOutTargetCal').textContent = `${recCal.toLocaleString('id-ID')} kkal/hari`;
+            document.getElementById('calcOutMacros').textContent = `${recP}g P • ${recC}g K • ${recF}g L`;
+
+            const diff = targetW - weight;
+            const weeks = Math.abs(diff) < 0.2 ? 0 : Math.max(1, Math.round((Math.abs(diff) * 7700) / 3500));
+            document.getElementById('calcOutWeeks').textContent = weeks === 0 ? 'Target Terpenuhi' : `~${weeks} Minggu (${diff > 0 ? '+' : ''}${diff.toFixed(1)} kg)`;
+
+            return { gender, age, height, weight, targetW, recCal, recP, recC, recF };
+        }
+
+        function applyCalculatorToAllState() {
+            const calc = recalculateBmiEngine();
+            const fat = parseFloat(document.getElementById('bmiCurrentFat').value) || appState.currentBodyFat;
+            const muscle = parseFloat(document.getElementById('bmiCurrentMuscle').value) || appState.currentMuscle;
+            const visceral = parseFloat(document.getElementById('bmiCurrentVisceral').value) || appState.currentVisceral;
+
+            appState.gender = calc.gender;
+            appState.age = calc.age;
+            appState.height = calc.height;
+            appState.currentWeight = calc.weight;
+            appState.currentBodyFat = fat;
+            appState.currentMuscle = muscle;
+            appState.currentVisceral = visceral;
+            appState.targetWeight = calc.targetW;
+            appState.targetCalories = calc.recCal;
+            appState.targetProtein = calc.recP;
+            appState.targetCarbs = calc.recC;
+            appState.targetFat = calc.recF;
+
+            renderAll();
+            showToast(`Berhasil diterapkan! BB Hari Ini: ${calc.weight} kg, Fat: ${fat}%, Target: ${calc.recCal.toLocaleString('id-ID')} kkal`);
+            switchTab('dashboard');
+        }
+
+        function openManualTargetModal() {
+            document.getElementById('modalTargetCal').value = appState.targetCalories;
+            document.getElementById('modalTargetP').value = appState.targetProtein;
+            document.getElementById('modalTargetC').value = appState.targetCarbs;
+            document.getElementById('modalTargetF').value = appState.targetFat;
+            document.getElementById('modalTargetW').value = appState.targetWeight;
+            document.getElementById('manualTargetModal').classList.remove('hidden');
+        }
+
+        function closeManualTargetModal() {
+            document.getElementById('manualTargetModal').classList.add('hidden');
+        }
+
+        function saveModalManualTarget() {
+            appState.targetCalories = parseInt(document.getElementById('modalTargetCal').value) || 2100;
+            appState.targetProtein = parseInt(document.getElementById('modalTargetP').value) || 155;
+            appState.targetCarbs = parseInt(document.getElementById('modalTargetC').value) || 210;
+            appState.targetFat = parseInt(document.getElementById('modalTargetF').value) || 70;
+            appState.targetWeight = parseFloat(document.getElementById('modalTargetW').value) || 66.0;
+
+            document.getElementById('bmiTargetWeightInput').value = appState.targetWeight.toFixed(1);
+            document.getElementById('bmiTargetWeightSlider').value = appState.targetWeight;
+
+            closeManualTargetModal();
+            renderAll();
+            showToast(`Target manual disimpan: ${appState.targetCalories.toLocaleString('id-ID')} kkal & Target BB ${appState.targetWeight} kg`);
+        }
+
+        function saveInlineManualTargets() {
+            appState.targetCalories = parseInt(document.getElementById('manualCalInput').value) || 2100;
+            appState.targetProtein = parseInt(document.getElementById('manualProtInput').value) || 155;
+            appState.targetCarbs = parseInt(document.getElementById('manualCarbInput').value) || 210;
+            appState.targetFat = parseInt(document.getElementById('manualFatInput').value) || 70;
+            appState.targetWeight = parseFloat(document.getElementById('manualTargetWeightInput').value) || 66.0;
+            appState.targetBodyFat = parseFloat(document.getElementById('manualTargetBodyFatInput').value) || 14.0;
+            appState.targetMuscle = parseFloat(document.getElementById('manualTargetMuscleInput').value) || 57.0;
+
+            document.getElementById('bmiTargetWeightInput').value = appState.targetWeight.toFixed(1);
+            document.getElementById('bmiTargetWeightSlider').value = appState.targetWeight;
+
+            renderAll();
+            showToast(`Target manual berhasil disimpan & diterapkan ke seluruh dasbor!`);
+            switchTab('dashboard');
+        }
+
+        function openWaModal() { document.getElementById('waModal').classList.remove('hidden'); }
+        function openCloudflareModal() { document.getElementById('cloudflareModal').classList.remove('hidden'); }
+        function openAccountModal() { document.getElementById('accountModal').classList.remove('hidden'); }
+
+        function saveUserAccount() {
+            appState.email = document.getElementById('loginEmailInput').value.trim() || 'bie@biefit.id';
+            document.getElementById('headerUserEmail').textContent = appState.email;
+            document.getElementById('accountModal').classList.add('hidden');
+            showToast(`Login aktif sebagai ${appState.email}`);
+        }
+
+        function sendCalorieWaAlert() {
+            const calIn = Math.round(appState.meals.reduce((s, m) => s + m.cal, 0));
+            const pct = Math.round((calIn / appState.targetCalories) * 100);
+            const statusMsg = calIn > appState.targetCalories
+                ? `PERINGATAN: Kalori makan hari ini (${calIn} kkal) telah MELEBIHI target harian ${appState.targetCalories} kkal (${pct}%).`
+                : `PENGINGAT: Kalori makan hari ini baru mencapai ${calIn} kkal (${pct}% — kurang dari 50% target harian ${appState.targetCalories} kkal). Jangan lupa penuhi kebutuhan nutrisi Anda!`;
+            const url = `https://wa.me/${appState.waPhone}?text=${encodeURIComponent(`*Bie.Fit Smart Alert*\n${statusMsg}`)}`;
+            window.open(url, '_blank');
+        }
+
+        function triggerMorningWaSchedule() {
+            const listText = appState.schedules.map(s => `• ${s.time} - ${s.text}`).join('\n');
+            const msg = `*Bie.Fit Morning Reminder (06:00)*\nSelamat pagi! Berikut jadwal sehat Anda hari ini:\n${listText}\n\nTarget Kalori: ${appState.targetCalories} kkal | Target BB: ${appState.targetWeight} kg`;
+            window.open(`https://wa.me/${appState.waPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        function initChartsAndHeatmap() {
+            const ctx = document.getElementById('weeklyWeightChart').getContext('2d');
+            weeklyChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Hari Ini'],
+                    datasets: [{
+                        label: 'Berat Badan (kg)',
+                        data: appState.weeklyWeights,
+                        borderColor: '#10B981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                        borderWidth: 2.5,
+                        pointBackgroundColor: '#10B981',
+                        pointRadius: 4,
+                        tension: 0.35,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94A3B8', font: { size: 11 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94A3B8', font: { size: 11 } } }
+                    }
+                }
+            });
+
+            const grid = document.getElementById('monthlyHeatmapGrid');
+            let cells = '';
+            for (let d = 1; d <= 30; d++) {
+                const style = d % 9 === 0
+                    ? 'bg-rose-500/20 border-rose-500/40 text-rose-300'
+                    : (d % 5 === 0 ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300');
+                cells += `<div class="p-2 rounded-xl border ${style} text-center font-mono text-xs font-bold">H-${d}</div>`;
+            }
+            grid.innerHTML = cells;
+        }
+
+        window.onload = function() {
+            initChartsAndHeatmap();
+            recalculateBmiEngine();
+            renderAll();
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
