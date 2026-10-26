@@ -13,7 +13,7 @@ run_worker_first = ["/api/*"]
 [[d1_databases]]
 binding = "DB"
 database_name = "bie-fit-db"
-database_id = "ISI_DENGAN_DATABASE_ID_DARI_DASHBOARD"
+database_id = "e6340e03-1a2f-4b31-beba-a22c534c3260"
 
 [[r2_buckets]]
 binding = "PHOTOS"
