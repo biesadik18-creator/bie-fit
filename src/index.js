@@ -58,17 +58,51 @@ export default {
   async fetch(req, env) {
     const p = new URL(req.url).pathname;
     if (!p.startsWith('/api/')) return env.ASSETS.fetch(req);
+    if (!env.AUTH_SECRET) return J({ error: 'AUTH_SECRET belum diatur di Cloudflare (Settings > Variables and Secrets)' }, 500);
     try {
+      if (req.method === 'POST' && (p === '/api/forgot' || p === '/api/reset')) {
+        const { email = '', code = '', password = '' } = await req.json();
+        const u = await env.DB.prepare('SELECT id,wa FROM users WHERE email=?').bind(email.trim().toLowerCase()).first();
+        if (p === '/api/forgot') {
+          if (u && u.wa) {
+            const old = await env.DB.prepare('SELECT sent_at FROM resets WHERE user_id=?').bind(u.id).first();
+            if (!old || Date.now() - old.sent_at > 60000) {
+              const otp = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
+              await env.DB.prepare('INSERT INTO resets(user_id,code_hash,expires_at,tries,sent_at) VALUES(?,?,?,0,?) ON CONFLICT(user_id) DO UPDATE SET code_hash=excluded.code_hash, expires_at=excluded.expires_at, tries=0, sent_at=excluded.sent_at')
+                .bind(u.id, await hmac(otp, env.AUTH_SECRET), Date.now() + 6e5, Date.now()).run();
+              await sendWa(env, u.wa, `Kode reset password Bie.Fit: ${otp}\nBerlaku 10 menit. Abaikan pesan ini jika bukan kamu yang meminta.`);
+            }
+          }
+          return J({ ok: true }); // jawaban sama apa pun hasilnya, agar email tidak bisa ditebak
+        }
+        if (password.length < 8) return J({ error: 'Password minimal 8 karakter' }, 400);
+        const rs = u && (await env.DB.prepare('SELECT code_hash,expires_at,tries FROM resets WHERE user_id=?').bind(u.id).first());
+        const bad = J({ error: 'Kode salah atau kedaluwarsa, minta kode baru' }, 400);
+        if (!rs || Date.now() > rs.expires_at || rs.tries >= 5) return bad;
+        if (rs.code_hash !== (await hmac(code.trim(), env.AUTH_SECRET))) {
+          await env.DB.prepare('UPDATE resets SET tries=tries+1 WHERE user_id=?').bind(u.id).run();
+          return bad;
+        }
+        const salt = crypto.randomUUID();
+        await env.DB.prepare('UPDATE users SET salt=?, hash=? WHERE id=?').bind(salt, await pbkdf2(password, salt), u.id).run();
+        await env.DB.prepare('DELETE FROM resets WHERE user_id=?').bind(u.id).run();
+        return J({ token: await mkToken(u.id, env) });
+      }
+
       if (req.method === 'POST' && (p === '/api/register' || p === '/api/login')) {
         const { email = '', password = '', name = '', wa = '' } = await req.json();
         const mail = email.trim().toLowerCase();
         if (p === '/api/register') {
           if (!/^\S+@\S+\.\S+$/.test(mail) || password.length < 8) return J({ error: 'Email tidak valid atau password kurang dari 8 karakter' }, 400);
           const salt = crypto.randomUUID();
+          let r;
           try {
-            const r = await env.DB.prepare('INSERT INTO users(email,name,wa,salt,hash) VALUES(?,?,?,?,?)').bind(mail, name, normWa(wa), salt, await pbkdf2(password, salt)).run();
-            return J({ token: await mkToken(r.meta.last_row_id, env) });
-          } catch { return J({ error: 'Email sudah terdaftar' }, 409); }
+            r = await env.DB.prepare('INSERT INTO users(email,name,wa,salt,hash) VALUES(?,?,?,?,?)').bind(mail, name, normWa(wa), salt, await pbkdf2(password, salt)).run();
+          } catch (e) {
+            if (/UNIQUE/i.test(e.message)) return J({ error: 'Email sudah terdaftar, silakan login' }, 409);
+            throw e;
+          }
+          return J({ token: await mkToken(r.meta.last_row_id, env) });
         }
         const u = await env.DB.prepare('SELECT id,salt,hash FROM users WHERE email=?').bind(mail).first();
         if (!u || u.hash !== (await pbkdf2(password, u.salt))) return J({ error: 'Email atau password salah' }, 401);
