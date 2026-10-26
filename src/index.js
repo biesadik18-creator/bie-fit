@@ -43,21 +43,35 @@ async function gemini(env, prompt, mime, data) {
 }
 
 async function sendWa(env, to, message) {
-  await fetch('https://api.fonnte.com/send', { method: 'POST', headers: { Authorization: env.FONNTE_TOKEN }, body: new URLSearchParams({ target: to, message, countryCode: '62' }) });
+  if (!env.FONNTE_TOKEN) return { ok: false, reason: 'FONNTE_TOKEN belum diatur di Cloudflare' };
+  try {
+    const r = await fetch('https://api.fonnte.com/send', { method: 'POST', headers: { Authorization: env.FONNTE_TOKEN }, body: new URLSearchParams({ target: to, message, countryCode: '62' }) });
+    const d = await r.json().catch(() => ({}));
+    return { ok: d.status === true, reason: d.reason || 'Fonnte tidak merespons dengan benar' };
+  } catch (e) { return { ok: false, reason: e.message }; }
+}
+
+const WD = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+function report(s) {
+  const today = s.day === wib();
+  const cal = today ? Math.round((s.meals || []).reduce((a, m) => a + m.cal, 0)) : 0;
+  const burn = today ? Math.round((s.workouts || []).reduce((a, w) => a + w.cal, 0)) : 0;
+  const tc = s.targetCalories || 2000, tb = s.targetBurn || 300, msg = [];
+  if (cal > tc * 1.05) msg.push(`🍽️ Kalori hari ini ${cal} kkal, MELEBIHI target ${tc} kkal.`);
+  else if (cal < tc * 0.8) msg.push(`🍽️ Kalori baru ${cal} dari target ${tc} kkal. Jangan lupa catat/penuhi makanmu.`);
+  if (burn < tb) msg.push(`🏋️ Pembakaran kalori ${burn} dari target ${tb} kkal belum tercapai.`);
+  else if (burn > tb * 1.5) msg.push(`🏋️ Olahraga ${burn} kkal, jauh di atas target ${tb} kkal. Pastikan istirahat & asupan cukup.`);
+  const dn = WD[new Date(Date.now() + 7 * 36e5).getUTCDay()];
+  const plan = (s.gymPlan || []).filter((x) => x.day === dn).map((x) => x.name);
+  if (plan.length && burn === 0) msg.push(`📅 Jadwal latihan hari ini (${dn}): ${plan.join(', ')} — belum dicatat.`);
+  return { cal, burn, tc, tb, msg };
 }
 
 async function notify(env) {
   const { results } = await env.DB.prepare("SELECT u.name, u.wa, s.json FROM users u JOIN state s ON s.user_id = u.id WHERE u.wa != ''").all();
   for (const u of results) {
-    const s = JSON.parse(u.json), isToday = s.day === wib();
-    const cal = isToday ? Math.round(s.meals.reduce((a, m) => a + m.cal, 0)) : 0;
-    const burn = isToday ? Math.round(s.workouts.reduce((a, w) => a + w.cal, 0)) : 0;
-    const tc = s.targetCalories || 2000, tb = s.targetBurn || 300, msg = [];
-    if (cal > tc * 1.05) msg.push(`🍽️ Kalori hari ini ${cal} kkal, MELEBIHI target ${tc} kkal.`);
-    else if (cal < tc * 0.8) msg.push(`🍽️ Kalori baru ${cal} dari target ${tc} kkal. Jangan lupa catat/penuhi makanmu.`);
-    if (burn < tb) msg.push(`🏋️ Pembakaran kalori ${burn} dari target ${tb} kkal belum tercapai.`);
-    else if (burn > tb * 1.5) msg.push(`🏋️ Olahraga ${burn} kkal, jauh di atas target ${tb} kkal. Pastikan istirahat & asupan cukup.`);
-    if (msg.length) await sendWa(env, u.wa, `Halo ${u.name || ''}, ringkasan Bie.Fit hari ini:\n` + msg.join('\n'));
+    const r = report(JSON.parse(u.json));
+    if (r.msg.length) await sendWa(env, u.wa, `Halo ${u.name || ''}, ringkasan Bie.Fit hari ini:\n` + r.msg.join('\n'));
   }
 }
 
@@ -130,6 +144,45 @@ export default {
         JSON.parse(body);
         await env.DB.prepare("INSERT INTO state(user_id,json) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET json=excluded.json, updated_at=CURRENT_TIMESTAMP").bind(uid, body).run();
         return J({ ok: true });
+      }
+
+      if (p === '/api/profile' && req.method === 'PUT') {
+        const { name, wa, password = '' } = await req.json();
+        const u = await env.DB.prepare('SELECT salt,hash FROM users WHERE id=?').bind(uid).first();
+        let n = null;
+        if (typeof wa === 'string') {
+          if (u.hash !== (await pbkdf2(password, u.salt))) return J({ error: 'Password salah' }, 403);
+          n = normWa(wa);
+          if (n.length < 9) return J({ error: 'Nomor WhatsApp tidak valid' }, 400);
+        }
+        if (typeof name === 'string') await env.DB.prepare('UPDATE users SET name=? WHERE id=?').bind(name.trim().slice(0, 60), uid).run();
+        if (n) {
+          await env.DB.prepare('UPDATE users SET wa=? WHERE id=?').bind(n, uid).run();
+          await sendWa(env, n, 'Nomor ini sekarang terhubung ke notifikasi Bie.Fit ✅');
+        }
+        return J({ user: await env.DB.prepare('SELECT email,name,wa FROM users WHERE id=?').bind(uid).first() });
+      }
+      if (p === '/api/password' && req.method === 'POST') {
+        const { old = '', next = '' } = await req.json();
+        if (next.length < 8) return J({ error: 'Password baru minimal 8 karakter' }, 400);
+        const u = await env.DB.prepare('SELECT salt,hash FROM users WHERE id=?').bind(uid).first();
+        if (u.hash !== (await pbkdf2(old, u.salt))) return J({ error: 'Password lama salah' }, 403);
+        const salt = crypto.randomUUID();
+        await env.DB.prepare('UPDATE users SET salt=?, hash=? WHERE id=?').bind(salt, await pbkdf2(next, salt), uid).run();
+        return J({ ok: true });
+      }
+      if (p === '/api/wa/test' && req.method === 'POST') {
+        const { kind } = await req.json();
+        const u = await env.DB.prepare('SELECT wa FROM users WHERE id=?').bind(uid).first();
+        if (!u.wa) return J({ error: 'Nomor WhatsApp belum diisi. Isi lewat menu akun > Ganti no. HP' }, 400);
+        const row = await env.DB.prepare('SELECT json FROM state WHERE user_id=?').bind(uid).first();
+        const st = row ? JSON.parse(row.json) : {};
+        const r = report(st);
+        const text = kind === 'morning'
+          ? `*Bie.Fit — Jadwal Pagi*\n${(st.schedules || []).map((x) => `• ${x.time} ${x.text}`).join('\n') || '(belum ada jadwal)'}\n\nTarget: ${r.tc} kkal, bakar ${r.tb} kkal`
+          : `*Bie.Fit — Tes Alert*\nKalori ${r.cal}/${r.tc} kkal • Bakar ${r.burn}/${r.tb} kkal\n${r.msg.join('\n') || 'Semua target hari ini masih aman ✅'}`;
+        const res = await sendWa(env, u.wa, text);
+        return res.ok ? J({ ok: true, to: u.wa }) : J({ error: 'Fonnte: ' + res.reason }, 502);
       }
 
       const m = p.match(/^\/api\/scan\/(food|scale)$/);
