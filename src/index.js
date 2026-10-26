@@ -25,14 +25,21 @@ const SCALE = `Ini screenshot/foto laporan timbangan badan pintar. Ekstrak nilai
 Balas HANYA JSON: {"weight_kg":,"bmi":,"body_fat_pct":,"muscle_kg":,"fat_mass_kg":,"visceral":,"water_pct":,"bone_kg":,"bmr_kcal":,"metabolic_age":}. Gunakan null bila tidak tertulis.`;
 
 async function gemini(env, prompt, mime, data) {
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL || 'gemini-2.5-flash'}:generateContent`, {
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL || 'gemini-3.6-flash'}:generateContent`, {
     method: 'POST',
     headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'content-type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mime, data } }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.1 } }),
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mime, data } }] }], generationConfig: { responseMimeType: 'application/json' } }),
   });
-  if (!r.ok) throw new Error('Gemini error ' + r.status);
+  if (!r.ok) {
+    const t = await r.text();
+    let m = t.slice(0, 200);
+    try { m = JSON.parse(t).error.message; } catch {}
+    throw new Error(`Gemini ${r.status}: ${m}`);
+  }
   const d = await r.json();
-  return JSON.parse(d.candidates[0].content.parts[0].text);
+  const text = (d.candidates?.[0]?.content?.parts || []).map((x) => x.text || '').join('');
+  if (!text) throw new Error('Gemini tidak mengembalikan hasil, coba foto lain');
+  return JSON.parse(text);
 }
 
 async function sendWa(env, to, message) {
