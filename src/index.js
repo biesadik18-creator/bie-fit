@@ -24,11 +24,11 @@ Balas HANYA JSON: {"name":"nama makanan (Bahasa Indonesia)","serving":"perkiraan
 const SCALE = `Ini screenshot/foto laporan timbangan badan pintar. Ekstrak nilainya apa adanya, jangan menebak.
 Balas HANYA JSON: {"weight_kg":,"bmi":,"body_fat_pct":,"muscle_kg":,"fat_mass_kg":,"visceral":,"water_pct":,"bone_kg":,"bmr_kcal":,"metabolic_age":}. Gunakan null bila tidak tertulis.`;
 
-async function gemini(env, prompt, mime, data) {
+async function geminiParts(env, parts) {
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL || 'gemini-3.6-flash'}:generateContent`, {
     method: 'POST',
     headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'content-type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mime, data } }] }], generationConfig: { responseMimeType: 'application/json' } }),
+    body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: 'application/json' } }),
   });
   if (!r.ok) {
     const t = await r.text();
@@ -38,9 +38,15 @@ async function gemini(env, prompt, mime, data) {
   }
   const d = await r.json();
   const text = (d.candidates?.[0]?.content?.parts || []).map((x) => x.text || '').join('');
-  if (!text) throw new Error('Gemini tidak mengembalikan hasil, coba foto lain');
+  if (!text) throw new Error('Gemini tidak mengembalikan hasil (foto mungkin diblokir filter keamanan). Coba foto dengan pakaian olahraga dan cahaya terang.');
   return JSON.parse(text);
 }
+const gemini = (env, prompt, mime, data) => geminiParts(env, [{ text: prompt }, { inline_data: { mime_type: mime, data } }]);
+
+const BODY = (gender, weight, fat) => `Kamu pelatih kebugaran. Ada 1-3 foto orang yang sama (depan/samping/belakang, sesuai label). Ini penilaian kebugaran non-medis, hanya perkiraan visual.
+Data: jenis kelamin ${gender}, berat ${weight} kg, lemak tubuh dari timbangan ${fat}%.
+Beri skor 0-10 per area: "fat" = seberapa banyak lemak menumpuk (0 sangat tipis, 10 sangat banyak), "muscle" = seberapa berkembang ototnya (0 minim, 10 sangat berkembang). Area: shoulders, chest, upper_arm, abdomen, flanks (pinggang samping), upper_back, lower_back, glutes, thigh, calf. Beri null untuk area yang tidak terlihat jelas.
+Balas HANYA JSON: {"regions":{"shoulders":{"fat":0,"muscle":0},"chest":{...},"upper_arm":{...},"abdomen":{...},"flanks":{...},"upper_back":{...},"lower_back":{...},"glutes":{...},"thigh":{...},"calf":{...}},"est_body_fat_pct":0,"summary":"2-3 kalimat Bahasa Indonesia: area prioritas dan saran latihan","confidence":0}`;
 
 async function sendWa(env, to, message) {
   if (!env.FONNTE_TOKEN) return { ok: false, reason: 'FONNTE_TOKEN belum diatur di Cloudflare' };
@@ -61,9 +67,8 @@ function report(s) {
   else if (cal < tc * 0.8) msg.push(`🍽️ Kalori baru ${cal} dari target ${tc} kkal. Jangan lupa catat/penuhi makanmu.`);
   if (burn < tb) msg.push(`🏋️ Pembakaran kalori ${burn} dari target ${tb} kkal belum tercapai.`);
   else if (burn > tb * 1.5) msg.push(`🏋️ Olahraga ${burn} kkal, jauh di atas target ${tb} kkal. Pastikan istirahat & asupan cukup.`);
-  const dn = WD[new Date(Date.now() + 7 * 36e5).getUTCDay()];
-  const plan = (s.gymPlan || []).filter((x) => x.day === dn).map((x) => x.name);
-  if (plan.length && burn === 0) msg.push(`📅 Jadwal latihan hari ini (${dn}): ${plan.join(', ')} — belum dicatat.`);
+  const todo = ((s.gymDays || {})[wib()] || []).filter((x) => !x.done).map((x) => x.name);
+  if (todo.length) msg.push(`📅 Latihan terjadwal hari ini belum selesai: ${todo.join(', ')}.`);
   return { cal, burn, tc, tb, msg };
 }
 
@@ -183,6 +188,25 @@ export default {
           : `*Bie.Fit — Tes Alert*\nKalori ${r.cal}/${r.tc} kkal • Bakar ${r.burn}/${r.tb} kkal\n${r.msg.join('\n') || 'Semua target hari ini masih aman ✅'}`;
         const res = await sendWa(env, u.wa, text);
         return res.ok ? J({ ok: true, to: u.wa }) : J({ error: 'Fonnte: ' + res.reason }, 502);
+      }
+
+      if (p === '/api/scan/body' && req.method === 'POST') {
+        const fd = await req.formData(), parts = [], keys = {}, ts = Date.now();
+        const gender = fd.get('gender') === 'female' ? 'perempuan' : 'laki-laki';
+        const num = (k) => { const n = parseFloat(fd.get(k)); return Number.isFinite(n) ? n : 'tidak diketahui'; };
+        for (const [k, label] of [['front', 'depan'], ['side', 'samping'], ['back', 'belakang']]) {
+          const f = fd.get(k);
+          if (!f || typeof f === 'string') continue;
+          if (!/^image\/(jpeg|png|webp)$/.test(f.type) || f.size > 8e6) return J({ error: `Foto ${label} harus JPG/PNG/WebP, maksimal 8 MB` }, 400);
+          const buf = await f.arrayBuffer();
+          keys[k] = `${uid}/body/${ts}-${k}.${f.type.split('/')[1]}`;
+          await env.PHOTOS.put(keys[k], buf, { httpMetadata: { contentType: f.type } });
+          parts.push({ text: `Foto ${label}:` }, { inline_data: { mime_type: f.type, data: b64(buf) } });
+        }
+        if (!parts.length) return J({ error: 'Unggah minimal satu foto' }, 400);
+        const result = await geminiParts(env, [{ text: BODY(gender, num('weight'), num('fat')) }, ...parts]);
+        await env.DB.prepare('INSERT INTO scans(user_id,kind,r2_key,result) VALUES(?,?,?,?)').bind(uid, 'body', JSON.stringify(keys), JSON.stringify(result)).run();
+        return J({ keys, result });
       }
 
       const m = p.match(/^\/api\/scan\/(food|scale)$/);
