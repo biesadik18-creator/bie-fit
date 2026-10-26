@@ -25,30 +25,45 @@
     <p id="authSub" class="text-xs text-slate-400 mt-1"></p></div>
     <input id="aName" placeholder="Nama" class="reg ${IN}">
     <input id="aEmail" type="email" placeholder="Email" class="${IN}">
+    <input id="aCode" inputmode="numeric" maxlength="6" placeholder="Kode 6 digit dari WhatsApp" class="rst hidden ${IN}">
     <input id="aPass" type="password" placeholder="Password (min. 8 karakter)" class="${IN}">
     <input id="aWa" type="tel" placeholder="No. WhatsApp (08xxx / 62xxx) untuk notifikasi" class="reg ${IN}">
     <p id="aErr" class="text-xs text-rose-400 min-h-[1rem]"></p>
     <button id="aGo" class="w-full py-3 rounded-2xl bg-emerald-500 text-slate-900 font-bold text-sm"></button>
+    <button id="aForgot" class="w-full text-xs text-emerald-400">Lupa password?</button>
     <button id="aSwitch" class="w-full text-xs text-slate-400"></button></div>`;
   document.body.appendChild(ov);
 
+  const msg = (t, ok) => { const e = $('#aErr'); e.textContent = t; e.className = 'text-xs min-h-[1rem] ' + (ok ? 'text-emerald-300' : 'text-rose-400'); };
   function setMode(m) {
     mode = m;
-    ov.querySelectorAll('.reg').forEach((e) => e.classList.toggle('hidden', m === 'login'));
-    $('#authSub').textContent = m === 'login' ? 'Masuk untuk melanjutkan' : 'Buat akun baru';
-    $('#aGo').textContent = m === 'login' ? 'Masuk' : 'Daftar';
-    $('#aSwitch').textContent = m === 'login' ? 'Belum punya akun? Daftar' : 'Sudah punya akun? Masuk';
+    const show = (sel, on) => ov.querySelectorAll(sel).forEach((e) => e.classList.toggle('hidden', !on));
+    show('.reg', m === 'register'); show('.rst', m === 'reset'); show('#aPass', m !== 'forgot'); show('#aForgot', m === 'login');
+    $('#authSub').textContent = { login: 'Masuk untuk melanjutkan', register: 'Buat akun baru', forgot: 'Kode reset dikirim ke WhatsApp yang kamu daftarkan', reset: 'Masukkan kode dan password baru' }[m];
+    $('#aGo').textContent = { login: 'Masuk', register: 'Daftar', forgot: 'Kirim kode', reset: 'Ubah password' }[m];
+    $('#aSwitch').textContent = m === 'login' ? 'Belum punya akun? Daftar' : m === 'register' ? 'Sudah punya akun? Masuk' : 'Kembali ke login';
+    $('#aPass').placeholder = m === 'reset' ? 'Password baru (min. 8 karakter)' : 'Password (min. 8 karakter)';
+    msg('');
   }
   $('#aSwitch').onclick = () => setMode(mode === 'login' ? 'register' : 'login');
+  $('#aForgot').onclick = () => setMode('forgot');
   $('#aGo').onclick = async () => {
-    $('#aErr').textContent = '';
+    msg('');
     try {
-      const body = { email: $('#aEmail').value, password: $('#aPass').value };
+      const email = $('#aEmail').value;
+      if (mode === 'forgot') {
+        await api('/forgot', { method: 'POST', headers: JSONH, body: JSON.stringify({ email }) });
+        setMode('reset');
+        msg('Jika email terdaftar dan punya nomor WhatsApp, kode sudah dikirim (berlaku 10 menit).', true);
+        return;
+      }
+      const body = { email, password: $('#aPass').value };
       if (mode === 'register') Object.assign(body, { name: $('#aName').value.trim(), wa: $('#aWa').value });
-      const { token } = await api(mode === 'login' ? '/login' : '/register', { method: 'POST', headers: JSONH, body: JSON.stringify(body) });
+      if (mode === 'reset') body.code = $('#aCode').value;
+      const { token } = await api({ login: '/login', register: '/register', reset: '/reset' }[mode], { method: 'POST', headers: JSONH, body: JSON.stringify(body) });
       localStorage.setItem(TK, token);
       await boot();
-    } catch (e) { $('#aErr').textContent = e.message; }
+    } catch (e) { msg(e.message); }
   };
 
   // ---------- Muat data & autosave ke D1 ----------
