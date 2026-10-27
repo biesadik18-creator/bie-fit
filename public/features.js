@@ -159,45 +159,109 @@
 
   /* ====================== HOLOGRAM TUBUH ====================== */
   const RL = { shoulders: 'Bahu', chest: 'Dada', upper_arm: 'Lengan atas', abdomen: 'Perut', flanks: 'Pinggang samping', upper_back: 'Punggung atas', lower_back: 'Punggung bawah', glutes: 'Bokong', thigh: 'Paha', calf: 'Betis' };
-  const BASE = { shoulders: [[64, 90, 15, 10], [136, 90, 15, 10]], upper_arm: [[45, 120, 8, 24], [155, 120, 8, 24]], flanks: [[70, 190, 9, 17], [130, 190, 9, 17]], thigh: [[86, 292, 13, 32], [114, 292, 13, 32]], calf: [[84, 352, 9, 24], [116, 352, 9, 24]] };
+  const BASE = { shoulders: [[54, 92, 12, 10], [146, 92, 12, 10]], upper_arm: [[47, 125, 6, 24], [153, 125, 6, 24]], flanks: [[70, 190, 8, 17], [130, 190, 8, 17]], thigh: [[78, 292, 13, 32], [122, 292, 13, 32]], calf: [[80, 352, 8, 24], [120, 352, 8, 24]] };
   const GEO = {
-    front: { ...BASE, chest: [[100, 114, 30, 15]], abdomen: [[100, 178, 21, 20]] },
-    back: { ...BASE, upper_back: [[100, 116, 31, 17]], lower_back: [[100, 180, 21, 15]], glutes: [[100, 240, 28, 15]] },
+    front: { ...BASE, chest: [[100, 115, 28, 15]], abdomen: [[100, 178, 20, 20]] },
+    back: { ...BASE, upper_back: [[100, 116, 28, 17]], lower_back: [[100, 180, 20, 15]], glutes: [[100, 240, 26, 15]] },
   };
   let view = 'front';
   const layers = { fat: true, muscle: true };
 
+  // Kontur tubuh (setengah kanan: [jarak dari sumbu tengah, y]) dari ubun-ubun sampai selangkangan, pose berdiri A
+  const OUT = [[0, 12], [10, 15], [15, 26], [14, 40], [11, 51], [7, 60], [9, 67], [12, 72], [25, 77], [40, 81], [50, 87],
+    [55, 98], [57, 115], [59, 135], [61, 152], [63, 175], [65, 198], [68, 212], [71, 226], [67, 233], [62, 227], [59, 206],
+    [56, 182], [53, 157], [48, 133], [43, 112], [40, 106], [40, 125], [36, 150], [31, 172], [29, 186], [33, 205], [37, 224], [38, 242],
+    [36, 262], [35, 292], [33, 320], [31, 336], [30, 352], [27, 372], [24, 388], [27, 398], [31, 405], [24, 408], [14, 407], [13, 392],
+    [13, 360], [11, 325], [8, 290], [5, 265], [0, 254]];
+  const FW = [[0, 1], [70, 1], [90, 0.93], [130, 0.93], [185, 0.8], [215, 1.05], [262, 1.12], [300, 1.04], [330, 1], [420, 1]];
+  const fwAt = (y) => { for (let i = 1; i < FW.length; i++) if (y <= FW[i][0]) { const [y0, m0] = FW[i - 1], [y1, m1] = FW[i]; return m0 + ((y - y0) / (y1 - y0)) * (m1 - m0); } return 1; };
+  const dense = (P, S = 7, tau = 0.4) => {
+    const n = P.length, out = [];
+    for (let i = 0; i < n; i++) {
+      const p0 = P[(i + n - 1) % n], p1 = P[i], p2 = P[(i + 1) % n], p3 = P[(i + 2) % n];
+      for (let k = 0; k < S; k++) {
+        const t = k / S, t2 = t * t, t3 = t2 * t;
+        const a = 2 * t3 - 3 * t2 + 1, b = t3 - 2 * t2 + t, c = -2 * t3 + 3 * t2, d = t3 - t2;
+        out.push([0, 1].map((q) => a * p1[q] + b * tau * (p2[q] - p0[q]) + c * p2[q] + d * tau * (p3[q] - p1[q])));
+      }
+    }
+    return out;
+  };
+  const spans = (poly, y) => {
+    const xs = [];
+    for (let i = 0; i < poly.length; i++) {
+      const [x1, y1] = poly[i], [x2, y2] = poly[(i + 1) % poly.length];
+      if ((y1 <= y && y2 > y) || (y2 <= y && y1 > y)) xs.push(x1 + ((y - y1) * (x2 - x1)) / (y2 - y1));
+    }
+    xs.sort((a, b) => a - b);
+    const r = [];
+    for (let i = 0; i + 1 < xs.length; i += 2) r.push([xs[i], xs[i + 1]]);
+    return r;
+  };
+  const bodyCache = {};
+  function buildBody(g) {
+    if (bodyCache[g]) return bodyCache[g];
+    const R = OUT.map(([dx, y]) => [dx * (g === 'female' ? fwAt(y) : 1), y]);
+    const poly = dense([...R.map(([x, y]) => [100 + x, y]), ...R.slice(1, -1).reverse().map(([x, y]) => [100 - x, y])]);
+    const f = (n) => n.toFixed(1), sg = (w) => Math.min(4, w * 0.05);
+    const lv = [];
+    for (let y = 16.37; y < 408; y += 4.5) lv.push({ y, iv: spans(poly, y) });
+    let H = '', V = '', N = '';
+    lv.forEach(({ y, iv }, li) => {
+      iv.forEach(([a, b]) => { if (b - a >= 2) H += `M${f(a)} ${f(y)}Q${f((a + b) / 2)} ${f(y + sg(b - a))} ${f(b)} ${f(y)}`; });
+      const nx = lv[li + 1];
+      if (!nx || nx.iv.length !== iv.length) return;
+      iv.forEach(([a, b], k) => {
+        const [c, d] = nx.iv[k], w1 = b - a, w2 = d - c, n = Math.max(1, Math.round(Math.min(w1, w2) / 9));
+        for (let j = 1; j <= n; j++) {
+          const t = j / (n + 1), y1 = y + sg(w1) * 2 * t * (1 - t), y2 = nx.y + sg(w2) * 2 * t * (1 - t);
+          V += `M${f(a + t * w1)} ${f(y1)}L${f(c + t * w2)} ${f(y2)}`;
+          if (li % 2 === 0) N += `M${f(a + t * w1)} ${f(y1)}h.01`;
+        }
+      });
+    });
+    return (bodyCache[g] = { path: 'M' + poly.map(([x, y]) => f(x) + ' ' + f(y)).join('L') + 'Z', H, V, N });
+  }
+  const NODES = [[-28, 30], [12, 18], [196, 44], [228, 22], [-18, 120], [218, 150], [-30, 230], [226, 262], [206, 350], [-22, 330], [24, 400], [180, 404], [232, 96], [-34, 180]];
+  const EDGES = [[0, 1], [1, 4], [2, 3], [2, 5], [5, 12], [4, 13], [6, 13], [7, 5], [8, 7], [9, 6], [10, 9], [11, 8], [0, 13]];
+
   function holoSVG(g, hr, k, km) {
-    const fem = g === 'female', ax = fem ? 6 : 0, lw = fem ? 30 : 29;
-    const sx = cl(0.94 + ((appState.currentBodyFat || 18) - 15) * 0.006, 0.9, 1.12);
-    const bar = (x1, y1, x2, y2, w) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#22d3ee" stroke-width="${w + 2}" stroke-linecap="round"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0a1a26" stroke-width="${w}" stroke-linecap="round"/>`;
-    const limbs = bar(50 + ax, 88, 38 + ax, 150, 15) + bar(38 + ax, 150, 32 + ax, 208, 12) + bar(150 - ax, 88, 162 - ax, 150, 15) + bar(162 - ax, 150, 168 - ax, 208, 12)
-      + bar(86, 258, 84, 322, lw) + bar(84, 322, 84, 382, 19) + bar(114, 258, 116, 322, lw) + bar(116, 322, 116, 382, 19);
-    const torso = fem ? 'M58 82Q100 72 142 82L134 150Q126 178 124 190Q140 215 138 250Q100 266 62 250Q60 215 76 190Q74 178 66 150Z' : 'M52 80Q100 68 148 80L140 150Q136 190 128 215L132 250Q100 262 68 250L72 215Q64 190 60 150Z';
-    const detail = view === 'front' ? '<path d="M100 80V150M82 112Q100 124 118 112" /><circle cx="100" cy="186" r="1.6"/>' : '<path d="M100 72V235M72 100Q86 128 100 124Q114 128 128 100"/>';
+    const B = buildBody(g), sx = cl(0.94 + ((appState.currentBodyFat || 18) - 15) * 0.006, 0.9, 1.12);
     const glow = [], dots = [];
     for (const [n, pts] of Object.entries(GEO[view])) {
       const s = hr?.[n];
       if (!s) continue;
       const m = (s.muscle ?? 0) * km, f = (s.fat ?? 0) * k;
       pts.forEach(([x, y, rx, ry]) => {
-        if (layers.muscle && m >= 5) glow.push(`<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#34d399" opacity="${(0.2 + ((cl(m, 5, 10) - 5) / 5) * 0.5).toFixed(2)}"/>`);
+        if (layers.muscle && m >= 5) glow.push(`<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#34d399" opacity="${(0.25 + ((cl(m, 5, 10) - 5) / 5) * 0.55).toFixed(2)}"/>`);
         if (layers.fat && f >= 4) {
-          glow.push(`<ellipse cx="${x}" cy="${y}" rx="${rx * 0.85}" ry="${ry * 0.85}" fill="#facc15" opacity="${(0.3 + ((cl(f, 4, 10) - 4) / 6) * 0.55).toFixed(2)}"/>`);
-          dots.push(`<circle cx="${x}" cy="${y}" r="2.2" fill="#fde047"/>`);
+          glow.push(`<ellipse cx="${x}" cy="${y}" rx="${rx * 0.85}" ry="${ry * 0.85}" fill="#facc15" opacity="${(0.35 + ((cl(f, 4, 10) - 4) / 6) * 0.55).toFixed(2)}"/>`);
+          dots.push(`<circle cx="${x}" cy="${y}" r="2.2" fill="#fef08a"/>`);
         }
       });
     }
-    return `<svg viewBox="0 0 200 410" class="w-full h-full" role="img" aria-label="Hologram tubuh">
-      <defs><filter id="hb"><feGaussianBlur stdDeviation="4"/></filter>
-      <filter id="hg"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-      <linearGradient id="hs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity="0"/><stop offset=".5" stop-color="#22d3ee" stop-opacity=".5"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient></defs>
-      <ellipse cx="100" cy="398" rx="62" ry="7" fill="#22d3ee" opacity=".16"/><ellipse cx="100" cy="398" rx="40" ry="4" fill="none" stroke="#22d3ee" opacity=".6"/>
-      <g transform="translate(100 0) scale(${sx.toFixed(3)} 1) translate(-100 0)" filter="url(#hg)">${limbs}
-        <g fill="#0a1a26" stroke="#22d3ee" stroke-width="1.5"><path d="${torso}"/><ellipse cx="100" cy="34" rx="17" ry="21"/><rect x="93" y="52" width="14" height="16"/><ellipse cx="84" cy="392" rx="12" ry="5"/><ellipse cx="116" cy="392" rx="12" ry="5"/></g>
-        <g fill="none" stroke="#22d3ee" stroke-width="1" opacity=".35">${detail}</g>
-        <g filter="url(#hb)">${glow.join('')}</g>${dots.join('')}</g>
-      <rect x="0" y="0" width="200" height="22" fill="url(#hs)"><animate attributeName="y" values="-22;400;-22" dur="5s" repeatCount="indefinite"/></rect></svg>`;
+    const net = EDGES.map(([a, b]) => `<line x1="${NODES[a][0]}" y1="${NODES[a][1]}" x2="${NODES[b][0]}" y2="${NODES[b][1]}"/>`).join('');
+    const stars = NODES.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${1 + (i % 3) * 0.6}" fill="#bae6fd"><animate attributeName="opacity" values=".2;1;.2" dur="${2 + (i % 3)}s" begin="${(i * 0.4).toFixed(1)}s" repeatCount="indefinite"/></circle>`).join('');
+    return `<svg viewBox="-40 0 280 420" class="w-full h-full" role="img" aria-label="Hologram tubuh">
+      <defs><radialGradient id="hbg" cx=".5" cy=".55" r=".62"><stop offset="0" stop-color="#0b4fb3" stop-opacity=".85"/><stop offset=".6" stop-color="#06245c" stop-opacity=".5"/><stop offset="1" stop-color="#030a1c" stop-opacity="0"/></radialGradient>
+      <linearGradient id="hf" x1="0" x2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".34"/><stop offset=".5" stop-color="#0ea5e9" stop-opacity=".1"/><stop offset="1" stop-color="#22d3ee" stop-opacity=".34"/></linearGradient>
+      <linearGradient id="hs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a5f3fc" stop-opacity="0"/><stop offset=".5" stop-color="#a5f3fc" stop-opacity=".6"/><stop offset="1" stop-color="#a5f3fc" stop-opacity="0"/></linearGradient>
+      <filter id="hb" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4"/></filter>
+      <filter id="hg" x="-20%" y="-10%" width="140%" height="120%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <clipPath id="hc"><path d="${B.path}"/></clipPath></defs>
+      <rect x="-40" y="0" width="280" height="420" fill="#030a1c"/><rect x="-40" y="0" width="280" height="420" fill="url(#hbg)"/>
+      <polygon points="100,412 -40,290 -40,390" fill="#38bdf8" opacity=".07"/><polygon points="100,412 240,300 240,390" fill="#38bdf8" opacity=".06"/>
+      <g stroke="#7dd3fc" stroke-width=".5" opacity=".28">${net}</g>${stars}
+      <ellipse cx="100" cy="411" rx="70" ry="7" fill="#22d3ee" opacity=".14"/><ellipse cx="100" cy="411" rx="44" ry="4" fill="none" stroke="#67e8f9" stroke-width=".8" opacity=".7"/>
+      <g transform="translate(100 0) scale(${sx.toFixed(3)} 1) translate(-100 0)">
+        <path d="${B.path}" fill="url(#hf)" stroke="#67e8f9" stroke-width="1.4" stroke-linejoin="round" filter="url(#hg)"/>
+        <g clip-path="url(#hc)" fill="none">
+          <path d="${B.H}" stroke="#38bdf8" stroke-width=".55" opacity=".75"/><path d="${B.V}" stroke="#38bdf8" stroke-width=".5" opacity=".55"/>
+          <path d="${B.N}" stroke="#bae6fd" stroke-width="1.5" stroke-linecap="round" opacity=".9"/>
+          <g filter="url(#hb)">${glow.join('')}</g>${dots.join('')}
+          <rect x="0" y="0" width="200" height="26" fill="url(#hs)"><animate attributeName="y" values="-26;410;-26" dur="5s" repeatCount="indefinite"/></rect>
+        </g>
+      </g></svg>`;
   }
 
   const holoCard = document.createElement('div');
@@ -232,7 +296,7 @@
       </div>
       <div class="flex items-center justify-between gap-2 flex-wrap"><div class="flex gap-1.5">${vb('front', 'Depan')}${vb('back', 'Belakang')}</div>
         <div class="flex gap-1.5">${tg('fat', layers.fat, '🟡 Lemak', 'bg-yellow-500/15 border-yellow-500/40 text-yellow-300')}${tg('muscle', layers.muscle, '🟢 Otot', 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300')}</div></div>
-      <div class="mx-auto w-56 h-[23rem] sm:w-64 sm:h-[26rem] rounded-3xl bg-gradient-to-b from-cyan-950/40 to-transparent border border-cyan-500/20 p-2">${holoSVG(g, h?.regions, k, km)}</div>
+      <div class="mx-auto w-72 h-[27rem] sm:w-80 sm:h-[30rem] rounded-3xl overflow-hidden border border-cyan-500/20 bg-[#030a1c]">${holoSVG(g, h?.regions, k, km)}</div>
       ${h ? `<div class="space-y-1.5 text-[11px] text-slate-400">${top('fat', 4) ? `<div><span class="text-yellow-300 font-semibold">Area lemak tinggi:</span> ${top('fat', 4)}</div>` : ''}
         ${top('muscle', 5) ? `<div><span class="text-emerald-300 font-semibold">Otot berkembang:</span> ${top('muscle', 5)}</div>` : ''}${delta}
         ${h.summary ? `<p class="text-slate-300 leading-relaxed">${esc(h.summary)}</p>` : ''}</div>` : ''}
