@@ -19,8 +19,8 @@
   // ---------- Login / Register ----------
   const IN = 'w-full px-4 py-3 rounded-2xl bg-[#161F30] border border-white/[0.08] text-sm text-white outline-none focus:border-emerald-500';
   const ov = document.createElement('div');
-  ov.className = 'fixed inset-0 z-[9999] bg-[#0B0F19] flex items-center justify-center p-4 overflow-y-auto';
-  ov.innerHTML = `<div class="w-full max-w-sm bg-[#111827] border border-white/[0.07] rounded-3xl p-6 space-y-3">
+  ov.className = 'fixed inset-0 z-[9999] bg-[#0B0F19] flex p-4 overflow-y-auto';
+  ov.innerHTML = `<div class="w-full max-w-sm m-auto bg-[#111827] border border-white/[0.07] rounded-3xl p-6 space-y-3">
     <div class="text-center mb-2"><div class="text-2xl font-extrabold text-white">Bie<span class="text-emerald-400">.Fit</span></div>
     <p id="authSub" class="text-xs text-slate-400 mt-1"></p></div>
     <input id="aName" placeholder="Nama" class="reg ${IN}">
@@ -28,6 +28,12 @@
     <input id="aCode" inputmode="numeric" maxlength="6" placeholder="Kode 6 digit dari WhatsApp" class="rst hidden ${IN}">
     <input id="aPass" type="password" placeholder="Password (min. 8 karakter)" class="${IN}">
     <input id="aWa" type="tel" placeholder="No. WhatsApp (08xxx / 62xxx) untuk notifikasi" class="reg ${IN}">
+    <label class="reg block text-[11px] text-slate-400">Tanggal lahir (usia minimal 18 tahun)<input id="aBirth" type="date" class="mt-1 ${IN}"></label>
+    <div class="reg grid grid-cols-2 gap-2"><select id="aGender" class="${IN}"><option value="">Jenis kelamin</option><option value="male">Pria</option><option value="female">Wanita</option></select>
+    <input id="aHeight" type="number" inputmode="decimal" placeholder="Tinggi (cm)" class="${IN}"></div>
+    <input id="aWeight" type="number" inputmode="decimal" step="0.1" placeholder="Berat badan sekarang (kg)" class="reg ${IN}">
+    <select id="aAct" class="reg ${IN}"><option value="">Tingkat aktivitas</option><option value="1.2">Sedentari (jarang olahraga)</option><option value="1.375">Ringan (1-3x / minggu)</option><option value="1.55">Moderat (3-5x / minggu)</option><option value="1.725">Aktif (6-7x / minggu)</option></select>
+    <select id="aGoal" class="reg ${IN}"><option value="">Tujuan utama</option><option value="lose">Turun berat badan (cutting)</option><option value="maintain">Menjaga berat badan</option><option value="gain">Menambah otot (bulking)</option></select>
     <p id="aErr" class="text-xs text-rose-400 min-h-[1rem]"></p>
     <button id="aGo" class="w-full py-3 rounded-2xl bg-emerald-500 text-slate-900 font-bold text-sm"></button>
     <button id="aForgot" class="w-full text-xs text-emerald-400">Lupa password?</button>
@@ -58,7 +64,7 @@
         return;
       }
       const body = { email, password: $('#aPass').value };
-      if (mode === 'register') Object.assign(body, { name: $('#aName').value.trim(), wa: $('#aWa').value });
+      if (mode === 'register') Object.assign(body, { name: $('#aName').value.trim(), wa: $('#aWa').value, birthdate: $('#aBirth').value, gender: $('#aGender').value, height_cm: $('#aHeight').value, weight_kg: $('#aWeight').value, activity: $('#aAct').value, goal: $('#aGoal').value });
       if (mode === 'reset') body.code = $('#aCode').value;
       const { token } = await api({ login: '/login', register: '/register', reset: '/reset' }[mode], { method: 'POST', headers: JSONH, body: JSON.stringify(body) });
       localStorage.setItem(TK, token);
@@ -76,6 +82,11 @@
     appState.waPhone = user.wa || '';
     if (appState.targetBurn == null) appState.targetBurn = 300; // target bakar kalori harian (kkal)
     me = user; setHeader();
+    if (!state) appState.schedules = [];
+    const firstBio = !appState.bioApplied && !!user.birthdate;
+    applyBio(user, firstBio, false);
+    if (firstBio) appState.bioApplied = true;
+    if (!user.birthdate) setTimeout(() => menu.bio(), 600);
     if (!appState.gymPlan) appState.gymPlan = [];
     (appState.customExercises || []).forEach((e) => { if (!megaExercises.some((x) => x.id === e.id)) megaExercises.push(e); });
     const wi = $('#waPhoneInput'); if (wi) { wi.value = user.wa || ''; wi.readOnly = true; wi.title = 'Ubah lewat menu akun > Ganti no. HP'; }
@@ -212,9 +223,42 @@
     return o;
   }
   const put = (path, method, body) => api(path, { method, headers: JSONH, body: JSON.stringify(body) });
+  const SEL = (name, label, opts, val) => `<label class="block text-[11px] text-slate-400">${label}<select name="${name}" class="mt-1 ${IN} !py-2">${(val ? opts : [['', 'Pilih…'], ...opts]).map(([v, t]) => `<option value="${v}" ${String(v) === String(val) ? 'selected' : ''}>${t}</option>`).join('')}</select></label>`;
+  const GENDERS = [['male', 'Pria'], ['female', 'Wanita']];
+  const ACTS = [[1.2, 'Sedentari (jarang olahraga)'], [1.375, 'Ringan (1-3x / minggu)'], [1.55, 'Moderat (3-5x / minggu)'], [1.725, 'Aktif (6-7x / minggu)']];
+  const GOALS = [['lose', 'Turun berat badan (cutting)'], ['maintain', 'Menjaga berat badan'], ['gain', 'Menambah otot (bulking)']];
+  const ageOf = (b) => {
+    const d = new Date(b + 'T00:00:00Z'), n = new Date(Date.now() + 7 * 36e5);
+    let a = n.getUTCFullYear() - d.getUTCFullYear();
+    if (n.getUTCMonth() < d.getUTCMonth() || (n.getUTCMonth() === d.getUTCMonth() && n.getUTCDate() < d.getUTCDate())) a--;
+    return a;
+  };
+  // terapkan biodata akun ke state aplikasi (first = hitung berat awal & target; recalc = hitung ulang target kalori)
+  function applyBio(u, first, recalc) {
+    if (!u.birthdate) return;
+    Object.assign(appState, { gender: u.gender, age: ageOf(u.birthdate), height: u.height_cm, goalMode: u.goal || 'lose' });
+    if (first) {
+      const w = u.weight_kg || appState.currentWeight, h = u.height_cm / 100;
+      appState.currentWeight = w;
+      appState.targetWeight = u.goal === 'gain' ? +(w + 3).toFixed(1) : u.goal === 'maintain' ? w : +Math.max(w - 10, Math.min(w - 1, 22 * h * h)).toFixed(1);
+    }
+    const sv = (id, v) => { const e = document.getElementById(id); if (e) e.value = v; };
+    sv('bmiGender', u.gender); sv('bmiAge', appState.age); sv('bmiHeight', u.height_cm); sv('bmiActivity', u.activity || 1.55);
+    sv('bmiCurrentWeight', appState.currentWeight); sv('bmiCurrentFat', appState.currentBodyFat); sv('bmiCurrentMuscle', appState.currentMuscle); sv('bmiCurrentVisceral', appState.currentVisceral);
+    sv('bmiTargetWeightInput', appState.targetWeight); sv('bmiTargetWeightSlider', appState.targetWeight);
+    if (first || recalc) {
+      const c = recalculateBmiEngine();
+      Object.assign(appState, { targetCalories: c.recCal, targetProtein: c.recP, targetCarbs: c.recC, targetFat: c.recF });
+    }
+  }
+  const bioBody = (v, weight) => ({ birthdate: v('birthdate'), gender: v('gender'), height_cm: v('height_cm'), activity: v('activity'), goal: v('goal'), ...(weight ? { weight_kg: v('weight_kg') } : {}) });
   const menu = {
-    profil: () => xModal('Profil', F('name', 'Nama', 'text', me.name) + `<p class="text-xs text-slate-400">Email: <span class="text-slate-200">${esc(me.email)}</span></p><p class="text-xs text-slate-400">No. WhatsApp: <span class="text-slate-200">${esc(me.wa || 'belum diisi')}</span></p>`, 'Simpan', async (v, o) => {
-      me = (await put('/profile', 'PUT', { name: v('name') })).user; setHeader(); o.remove(); toast('Profil diperbarui');
+    bio: () => xModal('Lengkapi biodata', '<p class="text-[11px] text-slate-400">Biar target kalori dan saran Key pas untukmu. Usia minimal 18 tahun.</p>' + F('birthdate', 'Tanggal lahir', 'date', me.birthdate || '') + SEL('gender', 'Jenis kelamin', GENDERS, me.gender) + F('height_cm', 'Tinggi (cm)', 'number', me.height_cm || '') + F('weight_kg', 'Berat badan sekarang (kg)', 'number', me.weight_kg || '') + SEL('activity', 'Tingkat aktivitas', ACTS, me.activity) + SEL('goal', 'Tujuan utama', GOALS, me.goal), 'Simpan', async (v, o) => {
+      me = (await put('/profile', 'PUT', bioBody(v, true))).user;
+      applyBio(me, true, false); appState.bioApplied = true; renderAll(); o.remove(); toast('Biodata tersimpan, target kalori diperbarui');
+    }),
+    profil: () => xModal('Profil', F('name', 'Nama', 'text', me.name) + F('birthdate', 'Tanggal lahir', 'date', me.birthdate || '') + SEL('gender', 'Jenis kelamin', GENDERS, me.gender) + F('height_cm', 'Tinggi (cm)', 'number', me.height_cm || '') + SEL('activity', 'Tingkat aktivitas', ACTS, me.activity) + SEL('goal', 'Tujuan utama', GOALS, me.goal) + `<p class="text-xs text-slate-400">Email: <span class="text-slate-200">${esc(me.email)}</span></p><p class="text-xs text-slate-400">No. WhatsApp: <span class="text-slate-200">${esc(me.wa || 'belum diisi')}</span></p>`, 'Simpan', async (v, o) => {
+      me = (await put('/profile', 'PUT', { name: v('name'), ...bioBody(v, false) })).user; setHeader(); applyBio(me, !appState.bioApplied, true); appState.bioApplied = true; renderAll(); o.remove(); toast('Profil diperbarui');
     }),
     pass: () => xModal('Ganti password', F('old', 'Password lama', 'password') + F('n1', 'Password baru (min. 8 karakter)', 'password') + F('n2', 'Ulangi password baru', 'password'), 'Ubah', async (v, o) => {
       if (v('n1') !== v('n2')) throw new Error('Password baru tidak sama');
@@ -311,7 +355,7 @@
     renderPlan(); o.remove(); toast(`Jadwal ditambahkan (${days.length} hari)`);
   });
 
-  window.Bie = { api, toast, esc, IN };
+  window.Bie = { api, toast, esc, IN, get me() { return me; } };
   const featuresReady = new Promise((res) => {
     const sc = document.createElement('script');
     sc.src = '/features.js'; sc.onload = res; sc.onerror = res;

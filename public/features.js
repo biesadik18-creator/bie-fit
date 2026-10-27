@@ -367,6 +367,77 @@
     };
   }
 
+  /* ====================== HAPUS TULISAN "FATSECRET" ====================== */
+  {
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n; (n = w.nextNode()); ) {
+      if (/FatSecret/i.test(n.nodeValue) && !['SCRIPT', 'STYLE'].includes(n.parentElement?.tagName)) n.nodeValue = n.nodeValue.replace(/\s*\(FatSecret Mode\)/i, '').replace(/FatSecret Diary/i, 'Food Diary');
+    }
+  }
+
+  /* ====================== KEY (CHATBOT WELLNESS) ====================== */
+  const NAV = 'flex-1 py-2 rounded-xl flex flex-col items-center gap-1 text-[11px] font-semibold transition ';
+  const navBox = $('#navBtn-bmi')?.parentElement;
+  if (navBox) {
+    navBox.classList.replace('max-w-md', 'max-w-lg');
+    navBox.querySelectorAll('span').forEach((x) => x.classList.add('text-center', 'leading-tight'));
+    navBox.insertAdjacentHTML('beforeend', `<button onclick="switchTab('key')" id="navBtn-key" class="${NAV}text-slate-400 hover:text-white"><i data-lucide="message-circle" class="w-4 h-4"></i><span class="text-center leading-tight">Key</span></button>`);
+  }
+  const kv = document.createElement('section');
+  kv.id = 'view-key';
+  kv.className = 'app-view hidden space-y-3';
+  kv.innerHTML = `<div class="apple-card p-4 sm:p-5 space-y-3">
+    <div class="flex items-center justify-between"><div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-slate-900 font-extrabold">K</div>
+      <div><div class="text-sm font-bold text-white">Key</div><div class="text-[11px] text-emerald-400">Coach • Teman sehat • Pendengar baik</div></div></div>
+      <button id="keyClear" class="text-[11px] text-slate-500">Hapus obrolan</button></div>
+    <div id="keyMsgs" class="h-[50vh] overflow-y-auto space-y-3 pr-1"></div>
+    <div id="keyChips" class="flex flex-wrap gap-2"></div>
+    <div class="flex items-end gap-2"><textarea id="keyIn" rows="1" maxlength="1000" placeholder="Tanya Key soal olahraga, makan, tidur, mood…" class="flex-1 ${IN} !py-2.5 resize-none max-h-28"></textarea>
+    <button id="keySend" class="px-4 py-2.5 rounded-2xl bg-emerald-500 text-slate-900 font-bold text-sm">Kirim</button></div>
+    <p class="text-[10px] text-slate-500">Key adalah AI, bukan pengganti dokter atau psikolog. Dalam keadaan darurat hubungi 112.</p></div>`;
+  $('main').appendChild(kv);
+
+  const fmtMsg = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^\s*[-*] /gm, '• ').replace(/\n/g, '<br>');
+  const CHIPS = ['Menu makan malam sehat 🥗', 'Latihan 20 menit di rumah 💪', 'Susah tidur, tips dong 😴', 'Lagi stres, bantu tenangin 🧘'];
+  let kBusy = false;
+  function renderKey() {
+    const chat = appState.keyChat || [], nm = (window.Bie.me?.name || '').split(' ')[0] || 'kamu';
+    const bub = (mine, html) => `<div class="flex ${mine ? 'justify-end' : 'justify-start'}"><div class="max-w-[85%] px-3.5 py-2.5 text-sm leading-relaxed ${mine ? 'bg-emerald-500 text-slate-900 rounded-2xl rounded-br-md' : 'bg-[#161F30] text-slate-100 rounded-2xl rounded-bl-md'}">${html}</div></div>`;
+    $('#keyMsgs').innerHTML = (chat.length ? '' : bub(false, `Hai ${esc(nm)}! 👋 Aku <b>Key</b>, asisten wellness-mu (AI, ya!). Aku bisa jadi coach olahraga, teman ngobrol soal makan sehat, sekaligus pendengar kalau kamu lagi capek atau stres. Mau mulai dari mana?`))
+      + chat.map((m) => bub(m.r === 'user', fmtMsg(m.t))).join('') + (kBusy ? bub(false, '<span class="animate-pulse">Key sedang mengetik…</span>') : '');
+    $('#keyChips').innerHTML = chat.length ? '' : CHIPS.map((c) => `<button data-c="${esc(c)}" class="px-3 py-1.5 rounded-xl bg-[#161F30] border border-white/[0.08] text-xs text-slate-300">${esc(c)}</button>`).join('');
+    const m = $('#keyMsgs'); m.scrollTop = m.scrollHeight;
+  }
+  async function sendKey(text) {
+    text = (text ?? $('#keyIn').value).trim();
+    if (!text || kBusy) return;
+    $('#keyIn').value = ''; $('#keyIn').style.height = 'auto';
+    const chat = (appState.keyChat ||= []);
+    chat.push({ r: 'user', t: text, d: Date.now() });
+    kBusy = true; renderKey();
+    try {
+      const { reply } = await api('/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: chat.slice(-20).map((m) => ({ role: m.r === 'user' ? 'user' : 'model', text: m.t })) }) });
+      chat.push({ r: 'key', t: reply, d: Date.now() });
+    } catch (e) { toast(e.message); }
+    if (chat.length > 30) appState.keyChat = chat.slice(-30);
+    kBusy = false; renderKey();
+  }
+  $('#keySend').onclick = () => sendKey();
+  $('#keyIn').onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendKey(); } };
+  $('#keyIn').oninput = (e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 112) + 'px'; };
+  $('#keyChips').onclick = (e) => { const c = e.target.closest('[data-c]'); if (c) sendKey(c.dataset.c); };
+  $('#keyClear').onclick = () => { if (confirm('Hapus seluruh obrolan dengan Key?')) { appState.keyChat = []; renderKey(); } };
+
+  const st0 = window.switchTab;
+  window.switchTab = function (id) {
+    st0(id);
+    const kb = $('#navBtn-key');
+    if (kb) kb.className = NAV + (id === 'key' ? 'nav-pill-active' : 'text-slate-400 hover:text-white');
+    $('#xScale')?.parentElement.classList.toggle('hidden', id === 'key');
+    if (id === 'key') renderKey();
+  };
+
   /* ====================== PASANG KE RENDER UTAMA ====================== */
   const ra = window.renderAll;
   window.renderAll = function (...a) {
